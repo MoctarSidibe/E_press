@@ -69,11 +69,16 @@ npm install -g pm2
 
 ## Phase 3: Deploy Backend
 
+> **👶 BEGINNER GUIDE AVALIABLE**
+> If you want a detailed, step-by-step tutorial for this phase, read: [**BACKEND_DEPLOYMENT_BEGINNER.md**](./BACKEND_DEPLOYMENT_BEGINNER.md)
+
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/YOUR_GITHUB_USER/e-press.git
-    cd e-press/backend
+    git clone https://github.com/MoctarSidibe/E_press.git
+    cd E_press/backend
     ```
+    *(Note: if you just pushed to `MoctarSidibe/E_press`, use that URL)*
+
 2.  **Install Config**:
     ```bash
     npm install
@@ -97,6 +102,9 @@ npm install -g pm2
 ---
 
 ## Phase 4: Deploy Admin Panel
+
+> **👶 BEGINNER GUIDE AVALIABLE**
+> detailed steps here: [**ADMIN_DEPLOYMENT_BEGINNER.md**](./ADMIN_DEPLOYMENT_BEGINNER.md)
 
 Since you have a powerful Contabo VPS, you can host the Admin Panel right there!
 
@@ -123,6 +131,8 @@ Since you have a powerful Contabo VPS, you can host the Admin Panel right there!
 ---
 
 ## Phase 5: Configure Nginx (The Traffic Controller)
+
+> **Note:** The [**ADMIN_DEPLOYMENT_BEGINNER.md**](./ADMIN_DEPLOYMENT_BEGINNER.md) includes the full Nginx configuration for both Admin and Backend!
 
 We will configure Nginx to serve the Admin Panel AND the API on the same IP.
 
@@ -167,9 +177,14 @@ We will configure Nginx to serve the Admin Panel AND the API on the same IP.
 
 ## Phase 6: Mobile App
 
+> **👶 BEGINNER GUIDE AVALIABLE**
+> Step-by-step APK building guide: [**MOBILE_DEPLOYMENT_BEGINNER.md**](./MOBILE_DEPLOYMENT_BEGINNER.md)
+
 1.  **Update API URL**:
     *   File: `mobile/src/services/api.js`
     *   Change URL to: `http://YOUR_CONTABO_IP/api`
+    *   *(Make sure to use your real IP)*
+
 2.  **Build APK**:
     ```bash
     cd mobile
