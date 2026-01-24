@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Order QR Code</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        #qrcode {
+            margin: 20px auto;
+        }
+
+        .info {
+            margin-top: 20px;
+            color: #555;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Test Order QR</h1>
+        <div id="qrcode"></div>
+        <div class="info">
+            <p><strong>Order Number:</strong> <span id="orderNum"></span></p>
+            <p><strong>Order ID:</strong> <span id="orderId"></span></p>
+            <p>Scan this with the Driver App</p>
+        </div>
+    </div>
+
+    <script>
+        const orderData = {
+            orderId: "20c299a0-314d-4eb4-9c98-8c495ac1a804",
+            orderNumber: "ORD-84288187",
+            customerName: "Test Customer",
+            customerPhone: "+24160000000",
+            itemCount: 2,
+            createdAt: new Date().toISOString(),
+            pickupAddress: "2km Away Test Location, Libreville",
+            deliveryAddress: "Delivery Dest, Libreville"
+        };
+
+        document.getElementById('orderNum').textContent = orderData.orderNumber;
+        document.getElementById('orderId').textContent = orderData.orderId;
+
+        new QRCode(document.getElementById("qrcode"), {
+            text: JSON.stringify(orderData),
+            width: 256,
+            height: 256,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    </script>
+</body>
+
+</html>
