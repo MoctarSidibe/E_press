@@ -78,6 +78,22 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// API root (useful for quick checks)
+app.get('/api', (req, res) => {
+    res.json({
+        message: 'E-Press Laundry API',
+        version: '1.0.0',
+        endpoints: {
+            auth: '/api/auth',
+            users: '/api/users',
+            categories: '/api/categories',
+            orders: '/api/orders',
+            driver: '/api/driver',
+            admin: '/api/admin'
+        }
+    });
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
     res.json({
