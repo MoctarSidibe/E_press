@@ -48,7 +48,17 @@ Copy and paste these commands one by one. To paste in the terminal, usually **Ri
     apt install -y nodejs
     ```
 
-3.  **Install Essential Tools (Git, PM2, Nginx):**
+3.  **Install PostgreSQL (Database):**
+    ```bash
+    apt install -y postgresql
+    sudo -u postgres psql
+    CREATE DATABASE epress_laundry;
+    CREATE USER epress_user WITH ENCRYPTED PASSWORD 'YOUR_STRONG_PASSWORD';
+    GRANT ALL PRIVILEGES ON DATABASE epress_laundry TO epress_user;
+    \q
+    ```
+
+4.  **Install Essential Tools (Git, PM2, Nginx):**
     ```bash
     apt install -y git nginx
     npm install -g pm2
@@ -97,8 +107,13 @@ Copy and paste these commands one by one. To paste in the terminal, usually **Ri
     Copy the text below, modify the values, and right-click to paste into the black window.
     ```env
     PORT=5000
-    MONGO_URI=mongodb+srv://admin:YOUR_PASSWORD@cluster... (Your REAL MongoDB connection string)
+    DB_HOST=localhost
+    DB_PORT=5432
+    DB_NAME=epress_laundry
+    DB_USER=epress_user
+    DB_PASSWORD=YOUR_STRONG_PASSWORD
     JWT_SECRET=super_secret_key_123
+    ALLOWED_ORIGINS=http://YOUR_CONTABO_IP,http://localhost:5173
     ```
 
 4.  **Save and Exit:**

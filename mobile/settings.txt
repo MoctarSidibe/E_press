@@ -1,0 +1,4 @@
+root: C:\Users\user\OneDrive\Documents\e-press\mobile 
+path: C:\Program Files\nodejs 
+arch: 64 
+proxy: none

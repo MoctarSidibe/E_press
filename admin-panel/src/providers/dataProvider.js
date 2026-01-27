@@ -1,6 +1,6 @@
 import { fetchUtils } from 'react-admin';
+import { API_URL } from '../config/env';
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const httpClient = (url, options = {}) => {
     if (!options.headers) {
         options.headers = new Headers({ Accept: 'application/json' });
@@ -17,10 +17,10 @@ const dataProvider = {
 
         // Map resources to correct endpoints
         let fetchUrl = '';
-        if (resource === 'users') fetchUrl = `${apiUrl}/admin/users`;
-        else if (resource === 'categories') fetchUrl = `${apiUrl}/admin/categories`;
-        else if (resource === 'orders') fetchUrl = `${apiUrl}/orders`; // Admin gets all
-        else fetchUrl = `${apiUrl}/${resource}`;
+        if (resource === 'users') fetchUrl = `${API_URL}/admin/users`;
+        else if (resource === 'categories') fetchUrl = `${API_URL}/admin/categories`;
+        else if (resource === 'orders') fetchUrl = `${API_URL}/orders`; // Admin gets all
+        else fetchUrl = `${API_URL}/${resource}`;
 
         const { json } = await httpClient(fetchUrl);
 
@@ -37,16 +37,16 @@ const dataProvider = {
 
     getOne: async (resource, params) => {
         let fetchUrl = '';
-        if (resource === 'orders') fetchUrl = `${apiUrl}/orders/${params.id}`;
-        else if (resource === 'categories') fetchUrl = `${apiUrl}/categories/${params.id}`;
+        if (resource === 'orders') fetchUrl = `${API_URL}/orders/${params.id}`;
+        else if (resource === 'categories') fetchUrl = `${API_URL}/categories/${params.id}`;
         else if (resource === 'users') {
             // Users endpoint doesn't have GET by ID, so we fetch all and filter
-            const { json } = await httpClient(`${apiUrl}/admin/users`);
+            const { json } = await httpClient(`${API_URL}/admin/users`);
             const user = json.find(u => u.id === params.id);
             if (!user) throw new Error('User not found');
             return { data: user };
         } else {
-            fetchUrl = `${apiUrl}/${resource}/${params.id}`;
+            fetchUrl = `${API_URL}/${resource}/${params.id}`;
         }
 
         const { json } = await httpClient(fetchUrl);
@@ -74,13 +74,13 @@ const dataProvider = {
         let method = 'PUT';
 
         if (resource === 'categories') {
-            fetchUrl = `${apiUrl}/admin/categories/${params.id}`;
+            fetchUrl = `${API_URL}/admin/categories/${params.id}`;
         } else if (resource === 'users') {
             // Users might not have PUT endpoint yet, we'll use PATCH if it exists
             // For now, skip user update or implement backend endpoint
             throw new Error('User update not implemented in backend');
         } else {
-            fetchUrl = `${apiUrl}/${resource}/${params.id}`;
+            fetchUrl = `${API_URL}/${resource}/${params.id}`;
         }
 
         const { json } = await httpClient(fetchUrl, {
@@ -98,12 +98,12 @@ const dataProvider = {
         let fetchUrl = '';
 
         if (resource === 'categories') {
-            fetchUrl = `${apiUrl}/admin/categories`;
+            fetchUrl = `${API_URL}/admin/categories`;
         } else if (resource === 'users') {
             // Use auth/register endpoint for creating users
-            fetchUrl = `${apiUrl}/auth/register`;
+            fetchUrl = `${API_URL}/auth/register`;
         } else {
-            fetchUrl = `${apiUrl}/${resource}`;
+            fetchUrl = `${API_URL}/${resource}`;
         }
 
         const { json } = await httpClient(fetchUrl, {
@@ -118,8 +118,8 @@ const dataProvider = {
 
     delete: async (resource, params) => {
         let fetchUrl = '';
-        if (resource === 'categories') fetchUrl = `${apiUrl}/admin/categories/${params.id}`;
-        else fetchUrl = `${apiUrl}/${resource}/${params.id}`;
+        if (resource === 'categories') fetchUrl = `${API_URL}/admin/categories/${params.id}`;
+        else fetchUrl = `${API_URL}/${resource}/${params.id}`;
 
         await httpClient(fetchUrl, {
             method: 'DELETE',
@@ -133,7 +133,7 @@ const dataProvider = {
 
     // Custom method for dashboard
     getStats: async () => {
-        const { json } = await httpClient(`${apiUrl}/admin/stats`);
+        const { json } = await httpClient(`${API_URL}/admin/stats`);
         return json;
     }
 };

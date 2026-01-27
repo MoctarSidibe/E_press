@@ -4,29 +4,39 @@ This guide will walk you through deploying your E-Press system online using **Co
 
 ## 🏗️ Architecture Overview
 
-1.  **Database**: **MongoDB Atlas** (Cloud Database). Best for reliability and backups.
+1.  **Database**: **PostgreSQL** (Cloud or VPS). Best for reliability and backups.
 2.  **Backend & Admin**: **Contabo VPS** running Ubuntu. Managed via PM2 and Nginx.
 3.  **Mobile App**: Distributed as an `.apk` file for Android.
 
 ---
 
-## Phase 1: The Database (MongoDB Atlas)
+## Phase 1: The Database (PostgreSQL)
 
-*Note: You can host Mongo on Contabo, but Atlas is recommended for ease of management and backups.*
+*You can host PostgreSQL on your Contabo VPS or use a managed provider (Neon, Supabase, Render, Railway).*
 
-1.  Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) and sign up (Free).
-2.  Create a new **Cluster** (Free Tier M0).
-3.  **Create a Database User**:
-    *   Go to "Database Access" -> Add New Database User.
-    *   Username: `admin`, Password: `YOUR_SECURE_PASSWORD`.
-    *   Role: "Read and write to any database".
-4.  **Network Access**:
-    *   Go to "Network Access" -> Add IP Address.
-    *   Select "Allow Access from Anywhere" (`0.0.0.0/0`) initially.
-5.  **Get Connection String**:
-    *   Click "Connect" -> "Drivers" -> "Node.js".
-    *   Copy the string: `mongodb+srv://admin:<password>@cluster0...`
-    *   **Save this string**.
+### Option A: Managed PostgreSQL (Recommended)
+1.  Create a PostgreSQL database on your provider.
+2.  Save these connection details:
+    *   **Host**
+    *   **Port** (usually 5432)
+    *   **Database name**
+    *   **User**
+    *   **Password**
+
+### Option B: PostgreSQL on your VPS
+1.  Install PostgreSQL:
+    ```bash
+    apt install -y postgresql
+    ```
+2.  Create database and user:
+    ```bash
+    sudo -u postgres psql
+    CREATE DATABASE epress_laundry;
+    CREATE USER epress_user WITH ENCRYPTED PASSWORD 'YOUR_STRONG_PASSWORD';
+    GRANT ALL PRIVILEGES ON DATABASE epress_laundry TO epress_user;
+    \q
+    ```
+3.  Make sure your server can connect to PostgreSQL (local or remote).
 
 ---
 
@@ -87,8 +97,13 @@ npm install -g pm2
     Paste your config:
     ```env
     PORT=5000
-    MONGO_URI=your_mongodb_connection_string
+    DB_HOST=localhost
+    DB_PORT=5432
+    DB_NAME=epress_laundry
+    DB_USER=epress_user
+    DB_PASSWORD=your_strong_password
     JWT_SECRET=complex_secret_key
+    ALLOWED_ORIGINS=http://YOUR_CONTABO_IP,http://localhost:5173
     ```
     (Save: `Ctrl+X`, `Y`, `Enter`)
 
@@ -180,17 +195,15 @@ We will configure Nginx to serve the Admin Panel AND the API on the same IP.
 > **👶 BEGINNER GUIDE AVALIABLE**
 > Step-by-step APK building guide: [**MOBILE_DEPLOYMENT_BEGINNER.md**](./MOBILE_DEPLOYMENT_BEGINNER.md)
 
-1.  **Update API URL**:
-    *   File: `mobile/src/services/api.js`
-    *   Change URL to: `http://YOUR_CONTABO_IP/api`
-    *   *(Make sure to use your real IP)*
+1.  **Set API URL for production**:
+    *   File: `mobile/eas.json`
+    *   Ensure `EXPO_PUBLIC_API_URL` points to: `http://YOUR_CONTABO_IP/api`
 
-2.  **Build APK**:
+2.  **Build APK (EAS Build)**:
     ```bash
     cd mobile
-    cd android
-    ./gradlew assembleRelease
+    eas build -p android --profile production
     ```
-3.  **Distribute**:
-    *   File is in `mobile/android/app/build/outputs/apk/release/`.
-    *   Send key to drivers.
+3.  **Download & Distribute**:
+    *   Get the download link from `expo.dev` build page.
+    *   Send the APK to drivers.

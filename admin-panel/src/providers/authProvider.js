@@ -1,7 +1,8 @@
+import { API_URL } from '../config/env';
+
 const authProvider = {
     login: async ({ username, password }) => {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        const request = new Request(`${apiUrl}/auth/login`, {
+        const request = new Request(`${API_URL}/auth/login`, {
             method: 'POST',
             body: JSON.stringify({ email: username, password }),
             headers: new Headers({ 'Content-Type': 'application/json' }),

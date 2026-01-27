@@ -2,19 +2,44 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const { allowedOrigins } = require('./config/validateEnv');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
-        origin: '*',
+        origin: allowedOrigins.length > 0 ? allowedOrigins : '*',
         methods: ['GET', 'POST']
     }
 });
 
 // Middleware
-app.use(cors());
+if (process.env.TRUST_PROXY === '1') {
+    app.set('trust proxy', 1);
+}
+
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.length === 0) {
+            return callback(null, true);
+        }
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true
+};
+
+const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10);
+const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX || '200', 10);
+
+app.use(helmet());
+app.use(cors(corsOptions));
+app.use('/api', rateLimit({ windowMs: rateLimitWindowMs, max: rateLimitMax }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

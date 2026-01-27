@@ -73,26 +73,6 @@ router.get('/users', authMiddleware, requireRole(['admin', 'cleaner']), async (r
 });
 
 // Toggle user active status (admin)
-router.patch('/users/:id/toggle-status', authMiddleware, requireRole('admin'), async (req, res) => {
-    try {
-        const result = await db.query(
-            'UPDATE users SET is_active = NOT is_active WHERE id = $1 RETURNING *',
-            [req.params.id]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        res.json(result.rows[0]);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-});
-
-module.exports = router;
-
-// Toggle user active status (admin)
 router.patch('/users/:id/toggle-status', authMiddleware, requireRole(['admin', 'cleaner']), async (req, res) => {
     try {
         const result = await db.query(

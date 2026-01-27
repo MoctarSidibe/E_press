@@ -1,11 +1,12 @@
 # 📱 Beginner's Mobile App Build Guide (Phase 6)
 
-This guide explains how to create the `.apk` file for Android phones.
+This guide using **EAS Build** (Expo Application Services).
+**This runs in the cloud**, so you do **NOT** need Android Studio or a powerful computer.
 
 ## ✅ Prerequisites
-1.  **Android Studio** installed and setup (or at least the Android SDK).
-2.  **Java/JDK** installed.
-3.  **Backend must be running** online.
+1.  **Expo Account**: Sign up at [expo.dev](https://expo.dev/signup) (Free).
+2.  **Node.js**: You already have this installed.
+3.  **Backend Online**: Your API must be running on Contabo.
 
 ---
 
@@ -13,56 +14,76 @@ This guide explains how to create the `.apk` file for Android phones.
 
 **Where to run this:** On your **LOCAL** computer (VS Code).
 
-1.  **Open the API file:**
-    *   Navigate to `mobile/src/services/api.js` (or `api.ts` / `config.js` - check your project structure).
-2.  **Update the Base URL:**
-    Find the line with `localhost` or similar and change it to your Contabo IP.
-
-    ```javascript
-    // BEFORE:
-    // const API_URL = "http://10.0.2.2:5000"; 
-    
-    // AFTER:
-    const API_URL = "http://YOUR_CONTABO_IP/api"; 
+1.  **Set API URL for production (recommended):**
+    *   Open `mobile/eas.json`.
+    *   Ensure production profile includes:
+    ```json
+    "env": {
+      "EXPO_PUBLIC_API_URL": "http://161.97.66.69/api"
+    }
     ```
-    *Make sure to include the `/api` at the end if that's how your backend expects it (as configured in Nginx).*
+    *(Don't use localhost!)*
+
+2.  **Optional (dev only):**
+    *   You can set `EXPO_PUBLIC_DEV_API_URL` for local testing.
 
 ---
 
-## 📦 Step 2: Build the APK
+## ☁️ Step 2: Setup EAS (One Time Only)
 
 **Where to run this:** On your **LOCAL** computer (VS Code terminal).
 
-1.  **Open Terminal and go to android folder:**
+1.  **Instal EAS CLI:**
+    ```powershell
+    npm install -g eas-cli
+    ```
+
+2.  **Login to Expo:**
+    ```powershell
+    eas login
+    ```
+    *   Enter your Email and Password from step 1.
+
+3.  **Configure the Project:**
     ```powershell
     cd mobile
-    cd android
+    eas build:configure
     ```
-
-2.  **Clean previous builds (Optional but recommended):**
-    ```powershell
-    ./gradlew clean
-    ```
-
-3.  **Build the Release APK:**
-    ```powershell
-    ./gradlew assembleRelease
-    ```
-    *   *This process might take 5-10 minutes.*
-    *   *If you get errors, often it's related to Java version or missing SDK location.*
+    *   Select **Android**.
+    *   This will create a file named `eas.json`.
 
 ---
 
-## 🚀 Step 3: Find and Install
+## 🚀 Step 3: Build the APK
 
-1.  **Locate the file:**
-    It will be created here:
-    `mobile/android/app/build/outputs/apk/release/app-release.apk`
+**Where to run this:** On your **LOCAL** computer (VS Code terminal inside `mobile` folder).
 
-2.  **Transfer to Phone:**
-    *   Send this file to yourself (WhatsApp, Google Drive, USB).
-    *   Install it on your Android phone.
+1.  **Run the Build Command:**
+    ```powershell
+    eas build -p android --profile production
+    ```
+    *   This will create an **APK** you can install directly.
 
-3.  **Test:**
-    *   Open the app.
-    *   Try to login. It should connect to your Contabo server!
+2.  **Answer the Questions:**
+    *   "Generate a new Android Keystore?" -> **Yes (Y)** to everything.
+
+3.  **Wait:**
+    *   It will upload your code and wait in a queue.
+    *   **It might take 10-20 minutes.**
+    *   You can close the terminal if you want; the build happens online.
+
+---
+
+## 📲 Step 4: Download & Install
+
+1.  **Get the Link:**
+    *   When finished, the terminal will show a link: `https://expo.dev/artifacts/...`
+    *   Or check your dashboard at [expo.dev](https://expo.dev).
+
+2.  **Install on Phone:**
+    *   Open that link on your Android phone.
+    *   Download the APK.
+    *   Install it! 
+    *   (You might need to allow "Install from Unknown Sources").
+
+**🎉 Done! You have a working App.**
