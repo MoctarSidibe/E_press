@@ -4,7 +4,7 @@ This guide is designed for absolute beginners. We will deploy the Node.js backen
 
 ## ✅ Prerequisites
 Before you start, make sure you have:
-1.  **VPS IP Address**: (e.g., `123.45.67.89`) - Check your Contabo email.
+1.  **VPS IP Address**: `161.97.66.69`
 2.  **VPS Password**: (Usually the `root` password) - Check your Contabo email.
 3.  **Terminal**: PowerShell (Windows) or Terminal (Mac/Linux).
 
@@ -15,9 +15,9 @@ Before you start, make sure you have:
 **Where to run this:** On your **LOCAL** computer (your laptop/PC).
 
 1.  Open **PowerShell** or **Command Prompt**.
-2.  Type the following command (replace `YOUR_IP` with your actual IP):
+2.  Type the following command:
     ```powershell
-    ssh root@123.45.67.89
+    ssh root@161.97.66.69
     ```
 3.  Press **Enter**.
 4.  If asked `Are you sure you want to continue connecting?`, type `yes` and press **Enter**.
@@ -113,7 +113,7 @@ Copy and paste these commands one by one. To paste in the terminal, usually **Ri
     DB_USER=epress_user
     DB_PASSWORD=YOUR_STRONG_PASSWORD
     JWT_SECRET=super_secret_key_123
-    ALLOWED_ORIGINS=http://YOUR_CONTABO_IP,http://localhost:5173
+    ALLOWED_ORIGINS=http://161.97.66.69,http://localhost:5173
     ```
 
 4.  **Save and Exit:**
@@ -198,7 +198,7 @@ We need to tell the web server (Nginx) to send traffic to your Node.js app.
 ## 🎯 Verification
 
 1.  Open your browser.
-2.  Go to: `http://YOUR_CONTABO_IP/api/` (e.g., `http://123.45.67.89/api/`).
+2.  Go to: `http://161.97.66.69/api/`.
 3.  You should see a message from your API (like "API Running" or a 404/JSON response depending on your code).
 
 **🎉 Congratulations! Your Backend is Live.**

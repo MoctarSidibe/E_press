@@ -55,7 +55,7 @@ This guide will walk you through deploying your E-Press system online using **Co
 1.  Open your terminal (PowerShell or Command Prompt on Windows).
 2.  Run:
     ```bash
-    ssh root@YOUR_CONTABO_IP
+    ssh root@161.97.66.69
     ```
 3.  Type `yes` if asked to confirm fingerprint.
 4.  Enter the password from the email.
@@ -103,7 +103,7 @@ npm install -g pm2
     DB_USER=epress_user
     DB_PASSWORD=your_strong_password
     JWT_SECRET=complex_secret_key
-    ALLOWED_ORIGINS=http://YOUR_CONTABO_IP,http://localhost:5173
+    ALLOWED_ORIGINS=http://161.97.66.69,http://localhost:5173
     ```
     (Save: `Ctrl+X`, `Y`, `Enter`)
 
@@ -126,8 +126,8 @@ Since you have a powerful Contabo VPS, you can host the Admin Panel right there!
 1.  **Build locally (on your PC)**:
     ```bash
     cd admin-panel
-    # Make sure .env.production exists or set generic API URL
-    # echo "VITE_API_URL=http://YOUR_CONTABO_IP/api" > .env.production
+    # Make sure .env.production exists or set API URL
+    # echo "VITE_API_URL=http://161.97.66.69/api" > .env.production
     npm run build
     ```
 2.  **Upload to Server**:
@@ -137,7 +137,7 @@ Since you have a powerful Contabo VPS, you can host the Admin Panel right there!
     ```bash
     cd ../admin-panel
     npm install
-    # Create .env.production with VITE_API_URL=http://YOUR_CONTABO_IP/api
+    # Create .env.production with VITE_API_URL=http://161.97.66.69/api
     npm run build
     mkdir -p /var/www/epress-admin
     cp -r dist/* /var/www/epress-admin
@@ -185,8 +185,8 @@ We will configure Nginx to serve the Admin Panel AND the API on the same IP.
     ```
 
 🎉 **Access enabled**:
-*   **Admin Panel**: `http://YOUR_CONTABO_IP/`
-*   **API**: `http://YOUR_CONTABO_IP/api/`
+*   **Admin Panel**: `http://161.97.66.69/`
+*   **API**: `http://161.97.66.69/api/`
 
 ---
 
@@ -197,7 +197,7 @@ We will configure Nginx to serve the Admin Panel AND the API on the same IP.
 
 1.  **Set API URL for production**:
     *   File: `mobile/eas.json`
-    *   Ensure `EXPO_PUBLIC_API_URL` points to: `http://YOUR_CONTABO_IP/api`
+    *   Ensure `EXPO_PUBLIC_API_URL` points to: `http://161.97.66.69/api`
 
 2.  **Build APK (EAS Build)**:
     ```bash

@@ -20,9 +20,9 @@ This guide shows you how to put your Admin Website online.
     ```
 4.  **Create the production configuration:**
     *   Create a new file inside `admin-panel` named `.env.production`.
-    *   Add this line (replace with your REAL IP):
+    *   Add this line:
         ```env
-        VITE_API_URL=http://YOUR_CONTABO_IP/api
+        VITE_API_URL=http://161.97.66.69/api
         ```
 5.  **Build the project:**
     ```powershell
@@ -39,7 +39,7 @@ We will use **FileZilla** to move the `dist` folder to your server.
 
 1.  **Open FileZilla.**
 2.  **Connect:**
-    *   **Host:** `sftp://YOUR_CONTABO_IP` (e.g., `sftp://123.45.67.89`)
+    *   **Host:** `sftp://161.97.66.69`
     *   **Username:** `root`
     *   **Password:** Your VPS password.
     *   **Port:** 22 (or leave empty).
@@ -104,7 +104,7 @@ We need to update Nginx to show the website AND the API.
     ```
 
 ## 🎯 Verification
-1.  Go to `http://YOUR_CONTABO_IP/` -> You should see the **Admin Login**.
-2.  Go to `http://YOUR_CONTABO_IP/api/` -> You should see the **API message**.
+1.  Go to `http://161.97.66.69/` -> You should see the **Admin Login**.
+2.  Go to `http://161.97.66.69/api/` -> You should see the **API message**.
 
 **🎉 Admin Panel is Live!**

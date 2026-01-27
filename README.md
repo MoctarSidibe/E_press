@@ -209,7 +209,7 @@ npm run dev
 ```
 
 **Test it works:**
-- Open browser and go to: `http://localhost:5000`
+- Open browser and go to: `http://161.97.66.69/api/` (production)
 - You should see JSON with API information
 
 **Keep this terminal window open!** The server needs to stay running.
@@ -576,7 +576,7 @@ npx expo start --clear
 2. **Check terminal for errors** (red text)
 3. **Update API URL** in `mobile/src/services/api.js`:
    ```javascript
-   const API_URL = 'http://YOUR_COMPUTER_IP:5000/api';
+const API_URL = 'http://161.97.66.69/api';
    ```
    Replace `YOUR_COMPUTER_IP` with your local IP (find with `ipconfig`)
 

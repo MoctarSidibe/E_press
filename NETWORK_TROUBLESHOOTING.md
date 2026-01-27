@@ -12,7 +12,7 @@
    You should see: "🚀 Server running on port 5000"
 
 2. **Check your IP configuration**
-   - Current API URL: `http://192.168.1.65:5000/api`
+- Current API URL: `http://161.97.66.69/api`
    - Verify this is your computer's local IP
 
 3. **Find your correct IP address:**
@@ -29,8 +29,8 @@
    Edit: `mobile/src/services/api.js`
    ```javascript
    const API_URL = __DEV__
-       ? 'http://YOUR_IP_HERE:5000/api'  // <-- Update this
-       : 'https://your-production-url.com/api';
+    ? 'http://161.97.66.69/api'
+    : 'http://161.97.66.69/api';
    ```
 
 5. **Firewall check**
@@ -53,7 +53,7 @@ npm start
 **Step 3: Test backend is accessible**
 Open browser and go to:
 ```
-http://YOUR_IP:5000/health
+http://161.97.66.69/health
 ```
 You should see: `{"status":"ok",...}`
 
@@ -98,8 +98,8 @@ const API_URL = 'http://localhost:5000/api'
 ### Test Endpoints
 
 Once backend is running, test these in browser:
-- `http://YOUR_IP:5000/health` - Should return OK
-- `http://YOUR_IP:5000/api/categories` - Should return categories (might need auth)
+- `http://161.97.66.69/health` - Should return OK
+- `http://161.97.66.69/api/categories` - Should return categories (might need auth)
 
 ### Still Not Working?
 

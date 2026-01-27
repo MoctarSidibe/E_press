@@ -47,12 +47,12 @@ Edit these files with YOUR actual IP:
 
 **File 1:** `mobile/src/services/api.js`
 ```javascript
-const API_URL = 'http://YOUR_IP:5000/api'  // Line 7
+const API_URL = 'http://161.97.66.69/api'  // Production API
 ```
 
 **File 2:** `mobile/src/services/socket.js`
 ```javascript
-const SOCKET_URL = 'http://YOUR_IP:5000'   // Around line 17
+const SOCKET_URL = 'http://161.97.66.69'   // Production API
 ```
 
 ### Step 6: Reload Mobile App
