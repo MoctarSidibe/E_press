@@ -10,7 +10,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(255) NOT NULL,
     phone VARCHAR(50) NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'driver', 'customer')),
+    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'driver', 'customer', 'cleaner')),
     avatar_url TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -7,6 +7,7 @@ import {
     ActivityIndicator,
     Alert
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import MapView, { Marker, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -14,6 +15,7 @@ import socketService from '../../services/socket';
 import theme from '../../theme/theme';
 
 const CourierMapScreen = ({ navigation }) => {
+    const { t } = useTranslation();
     const mapRef = useRef(null);
     const [location, setLocation] = useState(null);
     const [availableCouriers, setAvailableCouriers] = useState([]);
@@ -34,7 +36,7 @@ const CourierMapScreen = ({ navigation }) => {
             const { status } = await Location.requestForegroundPermissionsAsync();
 
             if (status !== 'granted') {
-                Alert.alert('Permission needed', 'Location permission is required to show nearby couriers');
+                Alert.alert(t('common.permissionNeeded'), t('customer.tracking.locationPermission'));
                 setLoading(false);
                 return;
             }
@@ -76,7 +78,7 @@ const CourierMapScreen = ({ navigation }) => {
                 }
             );
         } catch (error) {
-            Alert.alert('Error', 'Failed to get location');
+            Alert.alert(t('common.error'), t('errors.generic'));
             setLoading(false);
         }
     };

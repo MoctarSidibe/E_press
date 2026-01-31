@@ -1,13 +1,15 @@
 // Driver placeholder screens - to be fully implemented
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import theme from '../../theme/theme';
 
 const DriverDashboardScreen = () => {
+    const { t } = useTranslation();
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Driver Dashboard</Text>
-            <Text style={styles.subtitle}>Your stats and earnings will be displayed here</Text>
+            <Text style={styles.title}>{t('driver.dashboard.title')}</Text>
+            <Text style={styles.subtitle}>{t('driver.dashboard.subtitle')}</Text>
         </View>
     );
 };

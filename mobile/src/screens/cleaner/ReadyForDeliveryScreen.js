@@ -9,12 +9,14 @@ import {
     RefreshControl,
     ActivityIndicator
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ordersAPI } from '../../services/api';
 import socketService from '../../services/socket';
 import theme from '../../theme/theme';
 
 const ReadyForDeliveryScreen = ({ navigation }) => {
+    const { t } = useTranslation();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -50,22 +52,22 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
 
     const markAsReady = async (orderId) => {
         Alert.alert(
-            'Mark Ready for Delivery?',
-            'This will notify delivery couriers that the order is ready',
+            t('cleaner.delivery.markReady'),
+            t('cleaner.delivery.markReadyConfirm'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Mark Ready',
+                    text: t('cleaner.delivery.markReady'),
                     onPress: async () => {
                         setMarkingReady(prev => ({ ...prev, [orderId]: true }));
 
                         try {
                             await ordersAPI.updateStatus(orderId, 'ready', 'Cleaned and ready for delivery');
 
-                            Alert.alert('Success', 'Order marked ready! Delivery couriers have been notified.');
+                            Alert.alert(t('common.success'), t('cleaner.delivery.markReadySuccess'));
                             loadOrders();
                         } catch (error) {
-                            Alert.alert('Error', error.response?.data?.error || 'Failed to mark order as ready');
+                            Alert.alert(t('common.error'), error.response?.data?.error || t('cleaner.delivery.markReadyFailed'));
                         } finally {
                             setMarkingReady(prev => ({ ...prev, [orderId]: false }));
                         }
@@ -89,7 +91,7 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
                     {item.is_express && (
                         <View style={styles.expressBadge}>
                             <MaterialCommunityIcons name="flash" size={14} color="#fff" />
-                            <Text style={styles.expressBadgeText}>EXPRESS</Text>
+                            <Text style={styles.expressBadgeText}>{t('driver.availableOrders.express')}</Text>
                         </View>
                     )}
                 </View>
@@ -102,7 +104,7 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
 
                     <View style={styles.detailRow}>
                         <MaterialCommunityIcons name="hanger" size={18} color={theme.colors.textSecondary} />
-                        <Text style={styles.detailText}>{item.reception_item_count || item.pickup_item_count || item.confirmed_item_count} items</Text>
+                        <Text style={styles.detailText}>{item.reception_item_count || item.pickup_item_count || item.confirmed_item_count} {t('order.details.items')}</Text>
                     </View>
 
                     <View style={styles.detailRow}>
@@ -113,7 +115,7 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
                     <View style={styles.detailRow}>
                         <MaterialCommunityIcons name="clock" size={18} color={theme.colors.textSecondary} />
                         <Text style={styles.detailText}>
-                            Received: {new Date(item.received_at || item.updated_at).toLocaleDateString()}
+                            {t('cleaner.delivery.received')}: {new Date(item.received_at || item.updated_at).toLocaleDateString()}
                         </Text>
                     </View>
                 </View>
@@ -128,7 +130,7 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
                     ) : (
                         <>
                             <MaterialCommunityIcons name="check-circle" size={24} color="#fff" />
-                            <Text style={styles.readyButtonText}>Mark Ready for Delivery</Text>
+                            <Text style={styles.readyButtonText}>{t('cleaner.delivery.markReady')}</Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -140,7 +142,7 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>Loading orders...</Text>
+                <Text style={styles.loadingText}>{t('cleaner.delivery.loading')}</Text>
             </View>
         );
     }
@@ -151,8 +153,8 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
             <View style={styles.header}>
                 <MaterialCommunityIcons name="check-decagram" size={32} color={theme.colors.success} />
                 <View style={styles.headerTextContainer}>
-                    <Text style={styles.headerTitle}>Cleaning in Process</Text>
-                    <Text style={styles.headerSubtitle}>{orders.length} orders in facility</Text>
+                    <Text style={styles.headerTitle}>{t('cleaner.delivery.cleaningInProcess')}</Text>
+                    <Text style={styles.headerSubtitle}>{t('cleaner.delivery.ordersInFacility', { count: orders.length })}</Text>
                 </View>
             </View>
 
@@ -164,9 +166,9 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
                         size={80}
                         color={theme.colors.textTertiary}
                     />
-                    <Text style={styles.emptyTitle}>All Caught Up!</Text>
+                    <Text style={styles.emptyTitle}>{t('cleaner.delivery.allCaughtUp')}</Text>
                     <Text style={styles.emptySubtitle}>
-                        No orders waiting to be marked ready
+                        {t('cleaner.delivery.noOrdersWaiting')}
                     </Text>
                 </View>
             ) : (

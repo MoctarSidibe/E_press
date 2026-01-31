@@ -75,6 +75,12 @@ We need to update Nginx to show the website AND the API.
         listen 80;
         server_name _; 
 
+        # Health check
+        location = /health {
+            proxy_pass http://localhost:5000;
+            proxy_set_header Host $host;
+        }
+
         # 1. The Admin Website
         location / {
             root /var/www/epress-admin;
@@ -84,7 +90,7 @@ We need to update Nginx to show the website AND the API.
 
         # 2. The Backend API
         location /api/ {
-            proxy_pass http://localhost:5000/;
+            proxy_pass http://localhost:5000;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';

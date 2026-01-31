@@ -9,11 +9,13 @@ import {
     Alert,
     ActivityIndicator
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ordersAPI } from '../../services/api';
 import theme from '../../theme/theme';
 
 const ReceptionScreen = ({ navigation, route }) => {
+    const { t } = useTranslation();
     const [scannedOrder, setScannedOrder] = useState(null);
     const [receptionCount, setReceptionCount] = useState('');
     const [notes, setNotes] = useState('');
@@ -34,7 +36,7 @@ const ReceptionScreen = ({ navigation, route }) => {
 
             // Validate
             if (order.status !== 'picked_up') {
-                Alert.alert('Invalid Order', 'This order has not been picked up yet or is already received');
+                Alert.alert(t('common.error'), t('cleaner.reception.invalidOrder'));
                 return;
             }
 
@@ -45,12 +47,12 @@ const ReceptionScreen = ({ navigation, route }) => {
 
     const handleConfirmReception = async () => {
         if (!scannedOrder) {
-            Alert.alert('Error', 'Please scan an order first');
+            Alert.alert(t('common.error'), t('cleaner.reception.scanFirst'));
             return;
         }
 
         if (!receptionCount || receptionCount === '0') {
-            Alert.alert('Error', 'Please enter item count');
+            Alert.alert(t('common.error'), t('cleaner.reception.enterCount'));
             return;
         }
 
@@ -64,11 +66,11 @@ const ReceptionScreen = ({ navigation, route }) => {
             });
 
             Alert.alert(
-                'Success',
-                'Order received at facility!',
+                t('common.success'),
+                t('cleaner.reception.received'),
                 [
                     {
-                        text: 'OK',
+                        text: t('common.ok'),
                         onPress: () => {
                             setScannedOrder(null);
                             setReceptionCount('');
@@ -78,7 +80,7 @@ const ReceptionScreen = ({ navigation, route }) => {
                 ]
             );
         } catch (error) {
-            Alert.alert('Error', error.response?.data?.error || 'Failed to confirm reception');
+            Alert.alert(t('common.error'), error.response?.data?.error || t('cleaner.reception.confirmFailed'));
         } finally {
             setSubmitting(false);
         }
@@ -90,8 +92,8 @@ const ReceptionScreen = ({ navigation, route }) => {
             <View style={styles.header}>
                 <MaterialCommunityIcons name="package-variant" size={32} color={theme.colors.primary} />
                 <View style={styles.headerTextContainer}>
-                    <Text style={styles.headerTitle}>Item Reception</Text>
-                    <Text style={styles.headerSubtitle}>Scan incoming orders</Text>
+                    <Text style={styles.headerTitle}>{t('cleaner.reception.title')}</Text>
+                    <Text style={styles.headerSubtitle}>{t('cleaner.reception.subtitle')}</Text>
                 </View>
             </View>
 
@@ -104,9 +106,9 @@ const ReceptionScreen = ({ navigation, route }) => {
                             size={80}
                             color={theme.colors.textTertiary}
                         />
-                        <Text style={styles.promptTitle}>Ready to Receive</Text>
+                        <Text style={styles.promptTitle}>{t('cleaner.reception.readyToReceive')}</Text>
                         <Text style={styles.promptSubtitle}>
-                            Scan the QR code from the courier's bag
+                            {t('cleaner.reception.scanPrompt')}
                         </Text>
 
                         <TouchableOpacity
@@ -114,7 +116,7 @@ const ReceptionScreen = ({ navigation, route }) => {
                             onPress={handleScanQR}
                         >
                             <MaterialCommunityIcons name="qrcode-scan" size={24} color="#fff" />
-                            <Text style={styles.scanButtonText}>Scan QR Code</Text>
+                            <Text style={styles.scanButtonText}>{t('cleaner.reception.scanQR')}</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -128,31 +130,31 @@ const ReceptionScreen = ({ navigation, route }) => {
                                     size={24}
                                     color={theme.colors.success}
                                 />
-                                <Text style={styles.infoHeaderText}>Order Scanned</Text>
+                                <Text style={styles.infoHeaderText}>{t('cleaner.reception.orderScanned')}</Text>
                             </View>
 
                             <View style={styles.orderDetails}>
                                 <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Order Number:</Text>
+                                    <Text style={styles.detailLabel}>{t('order.details.orderId')}:</Text>
                                     <Text style={styles.detailValue}>{scannedOrder.order_number}</Text>
                                 </View>
 
                                 <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Customer:</Text>
+                                    <Text style={styles.detailLabel}>{t('cleaner.reception.customer')}:</Text>
                                     <Text style={styles.detailValue}>{scannedOrder.customer_name}</Text>
                                 </View>
 
                                 <View style={styles.detailRow}>
-                                    <Text style={styles.detailLabel}>Pickup Count:</Text>
+                                    <Text style={styles.detailLabel}>{t('cleaner.reception.pickupCount')}:</Text>
                                     <Text style={styles.detailValue}>
-                                        {scannedOrder.pickup_item_count || scannedOrder.confirmed_item_count} items
+                                        {scannedOrder.pickup_item_count || scannedOrder.confirmed_item_count} {t('order.details.items')}
                                     </Text>
                                 </View>
 
                                 {scannedOrder.is_express && (
                                     <View style={styles.expressBadge}>
                                         <MaterialCommunityIcons name="flash" size={16} color="#fff" />
-                                        <Text style={styles.expressBadgeText}>EXPRESS - 24hr</Text>
+                                        <Text style={styles.expressBadgeText}>{t('cleaner.reception.express')}</Text>
                                     </View>
                                 )}
                             </View>
@@ -160,9 +162,9 @@ const ReceptionScreen = ({ navigation, route }) => {
 
                         {/* Count Verification */}
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Verify Item Count</Text>
+                            <Text style={styles.sectionTitle}>{t('cleaner.reception.verifyCount')}</Text>
                             <Text style={styles.sectionSubtitle}>
-                                Count all items carefully as they are unpacked
+                                {t('cleaner.reception.verifyCountDesc')}
                             </Text>
 
                             <View style={styles.countContainer}>
@@ -193,7 +195,10 @@ const ReceptionScreen = ({ navigation, route }) => {
                                 <View style={styles.warningBox}>
                                     <MaterialCommunityIcons name="alert" size={20} color={theme.colors.warning} />
                                     <Text style={styles.warningText}>
-                                        Count mismatch! Expected {scannedOrder.pickup_item_count || scannedOrder.confirmed_item_count}, received {receptionCount}
+                                        {t('cleaner.reception.countMismatch', { 
+                                            expected: scannedOrder.pickup_item_count || scannedOrder.confirmed_item_count,
+                                            received: receptionCount 
+                                        })}
                                     </Text>
                                 </View>
                             )}
@@ -201,10 +206,10 @@ const ReceptionScreen = ({ navigation, route }) => {
 
                         {/* Notes */}
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Reception Notes (Optional)</Text>
+                            <Text style={styles.sectionTitle}>{t('cleaner.reception.notes')}</Text>
                             <TextInput
                                 style={styles.notesInput}
-                                placeholder="Note any damages, missing items, or special observations..."
+                                placeholder={t('cleaner.reception.notesPlaceholder')}
                                 placeholderTextColor={theme.colors.textTertiary}
                                 value={notes}
                                 onChangeText={setNotes}
@@ -223,7 +228,7 @@ const ReceptionScreen = ({ navigation, route }) => {
                                     setNotes('');
                                 }}
                             >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -236,7 +241,7 @@ const ReceptionScreen = ({ navigation, route }) => {
                                 ) : (
                                     <>
                                         <MaterialCommunityIcons name="check" size={24} color="#fff" />
-                                        <Text style={styles.confirmButtonText}>Confirm Reception</Text>
+                                        <Text style={styles.confirmButtonText}>{t('cleaner.reception.confirm')}</Text>
                                     </>
                                 )}
                             </TouchableOpacity>

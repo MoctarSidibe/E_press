@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import theme from '../theme/theme';
 
@@ -20,6 +21,7 @@ import CleanerProfileScreen from '../screens/cleaner/CleanerProfileScreen';
 // Tabs navigator
 const TabsNavigator = () => {
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
 
     return (
         <Tab.Navigator
@@ -53,22 +55,22 @@ const TabsNavigator = () => {
             <Tab.Screen
                 name="Reception"
                 component={ReceptionScreen}
-                options={{ tabBarLabel: 'Reception' }}
+                options={{ tabBarLabel: t('nav.reception') }}
             />
             <Tab.Screen
                 name="ReadyForDelivery"
                 component={ReadyForDeliveryScreen}
-                options={{ tabBarLabel: 'In Process' }}
+                options={{ tabBarLabel: t('nav.inProcess') }}
             />
             <Tab.Screen
                 name="CleanerReady"
                 component={CleanerReadyScreen}
-                options={{ tabBarLabel: 'Ready' }}
+                options={{ tabBarLabel: t('nav.ready') }}
             />
             <Tab.Screen
                 name="Profile"
                 component={CleanerProfileScreen}
-                options={{ tabBarLabel: 'Profile' }}
+                options={{ tabBarLabel: t('nav.profile') }}
             />
         </Tab.Navigator>
     );

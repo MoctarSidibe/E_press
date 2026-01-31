@@ -24,10 +24,11 @@ api.interceptors.request.use(
         const token = await AsyncStorage.getItem('auth_token'); // Changed from 'token' to 'auth_token'
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
-            console.log(`[API] Request to ${config.url} with auth token`);
+            console.log(`[API] Request to ${config.baseURL}${config.url} with auth token`);
         } else {
-            console.log(`[API] Request to ${config.url} WITHOUT auth token`);
+            console.log(`[API] Request to ${config.baseURL}${config.url} WITHOUT auth token`);
         }
+        console.log(`[API] Request method: ${config.method}, data:`, config.data);
         return config;
     },
     (error) => {
@@ -38,8 +39,29 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        console.log(`[API] Response from ${response.config.url}:`, response.status);
+        return response;
+    },
     async (error) => {
+        // Log detailed error information
+        if (error.response) {
+            // Server responded with error status
+            console.error(`[API] Error response from ${error.config?.url}:`, {
+                status: error.response.status,
+                data: error.response.data,
+                headers: error.response.headers
+            });
+        } else if (error.request) {
+            // Request was made but no response received
+            console.error(`[API] No response received from ${error.config?.url}:`, error.message);
+            error.message = 'Network error. Please check your internet connection.';
+            error.code = 'NETWORK_ERROR';
+        } else {
+            // Error setting up the request
+            console.error(`[API] Request setup error:`, error.message);
+        }
+        
         if (error.response?.status === 401) {
             // Token expired or invalid
             await AsyncStorage.removeItem('auth_token'); // Changed from 'token' to 'auth_token'

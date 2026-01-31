@@ -16,6 +16,7 @@ import {
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { routingService } from '../../services/routing.service';
+import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ordersAPI } from '../../services/api';
 import PhotoCapture from '../../components/PhotoCapture';
@@ -26,6 +27,7 @@ import theme from '../../theme/theme';
 const { height } = Dimensions.get('window');
 
 const PickupOrderScreen = ({ navigation, route }) => {
+    const { t } = useTranslation();
     const { orderId } = route.params;
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -99,7 +101,7 @@ const PickupOrderScreen = ({ navigation, route }) => {
             // Pre-fill expected item count
             setItemCount(response.data.confirmed_item_count?.toString() || '');
         } catch (error) {
-            Alert.alert('Error', 'Failed to load order');
+            Alert.alert(t('common.error'), t('errors.generic'));
             navigation.goBack();
         } finally {
             setLoading(false);
@@ -125,7 +127,7 @@ const PickupOrderScreen = ({ navigation, route }) => {
             }
         } catch (error) {
             console.error('Status update failed:', error);
-            Alert.alert('Error', 'Failed to update status');
+            Alert.alert(t('common.error'), t('errors.generic'));
         }
     };
 
@@ -136,21 +138,21 @@ const PickupOrderScreen = ({ navigation, route }) => {
             case 'assigned':
             case 'pending':
                 return {
-                    label: 'START TRIP',
+                    label: t('driver.pickup.startTrip'),
                     color: theme.colors.primary,
                     icon: 'car-connected',
                     onPress: () => handleStatusUpdate('driver_en_route_pickup')
                 };
             case 'driver_en_route_pickup':
                 return {
-                    label: 'I HAVE ARRIVED',
+                    label: t('driver.pickup.arrived'),
                     color: theme.colors.success,
                     icon: 'map-marker-check',
                     onPress: () => handleStatusUpdate('arrived_pickup')
                 };
             case 'arrived_pickup':
                 return {
-                    label: 'START PICKUP',
+                    label: t('driver.pickup.startPickup'),
                     color: theme.colors.primary,
                     icon: 'package-variant-closed',
                     onPress: () => {
@@ -162,7 +164,7 @@ const PickupOrderScreen = ({ navigation, route }) => {
                 };
             default:
                 return {
-                    label: 'VIEW DETAILS',
+                    label: t('driver.pickup.viewDetails'),
                     color: theme.colors.textSecondary,
                     icon: 'chevron-up',
                     onPress: toggleBottomSheet
@@ -174,7 +176,7 @@ const PickupOrderScreen = ({ navigation, route }) => {
 
     const handleNavigate = () => {
         if (!coords) {
-            Alert.alert("Error", "Location coordinates missing");
+            Alert.alert(t('common.error'), t('driver.pickup.locationMissing'));
             return;
         }
 
@@ -197,7 +199,7 @@ const PickupOrderScreen = ({ navigation, route }) => {
             orderId,
             onScan: (scannedOrder) => {
                 setIsVerified(true);
-                Alert.alert('QR Verified', `Order #${scannedOrder.order_number} confirmed`);
+                Alert.alert(t('driver.pickup.qrVerified'), t('driver.pickup.qrVerifiedMessage', { orderNumber: scannedOrder.order_number }));
             }
         });
     };
@@ -205,7 +207,7 @@ const PickupOrderScreen = ({ navigation, route }) => {
     const handleSaveSignature = (signatureData) => {
         setSignature(signatureData);
         setShowSignaturePad(false);
-        Alert.alert('Success', 'Signature captured');
+        Alert.alert(t('common.success'), t('driver.pickup.signatureCaptured'));
     };
 
     const handleSubmit = async () => {
@@ -213,28 +215,28 @@ const PickupOrderScreen = ({ navigation, route }) => {
 
         // Logic Enforcement: Must have arrived
         if (order.status !== 'arrived_pickup' && order.status !== 'picked_up') {
-            Alert.alert('Action Required', 'Please tap "I HAVE ARRIVED" first.');
+            Alert.alert(t('driver.pickup.actionRequired'), t('driver.pickup.tapArrivedFirst'));
             return;
         }
 
         // Validation
         if (!itemCount || itemCount === '0') {
-            Alert.alert('Error', 'Please enter item count');
+            Alert.alert(t('common.error'), t('driver.pickup.enterItemCount'));
             return;
         }
 
         if (!signature) {
-            Alert.alert('Error', 'Customer signature is required');
+            Alert.alert(t('common.error'), t('driver.pickup.customerSignatureRequired'));
             return;
         }
 
         if (photos.length === 0) {
             Alert.alert(
-                'No Photos',
-                'It\'s recommended to take photos. Continue without photos?',
+                t('driver.pickup.noPhotos'),
+                t('driver.pickup.noPhotosContinue'),
                 [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Continue', onPress: submitPickup }
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('driver.pickup.continue'), onPress: submitPickup }
                 ]
             );
             return;
@@ -258,17 +260,17 @@ const PickupOrderScreen = ({ navigation, route }) => {
             await ordersAPI.scanOrder(orderId, scanData);
 
             Alert.alert(
-                'Success',
-                'Pickup completed successfully!',
+                t('common.success'),
+                t('driver.pickup.pickupCompleted'),
                 [
                     {
-                        text: 'OK',
+                        text: t('common.ok'),
                         onPress: () => navigation.navigate('Available')
                     }
                 ]
             );
         } catch (error) {
-            Alert.alert('Error', error.response?.data?.error || 'Failed to complete pickup');
+            Alert.alert(t('common.error'), error.response?.data?.error || t('driver.pickup.failedCompletePickup'));
         } finally {
             setSubmitting(false);
         }
@@ -508,7 +510,7 @@ const PickupOrderScreen = ({ navigation, route }) => {
                                 />
                             </View>
                             <Text style={[styles.actionLabel, isVerified && { color: theme.colors.success, fontWeight: 'bold' }]}>
-                                {isVerified ? 'Verified' : 'Scan QR'}
+                                {isVerified ? t('driver.pickup.verified') : t('driver.pickup.scanQR')}
                             </Text>
                         </TouchableOpacity>
 
@@ -520,13 +522,13 @@ const PickupOrderScreen = ({ navigation, route }) => {
                                     color={signature ? theme.colors.success : theme.colors.primary}
                                 />
                             </View>
-                            <Text style={styles.actionLabel}>{signature ? "Signed" : "Signature"}</Text>
+                            <Text style={styles.actionLabel}>{signature ? t('driver.pickup.signed') : t('driver.pickup.signature')}</Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Verification & Items */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Verification</Text>
+                        <Text style={styles.sectionTitle}>{t('driver.pickup.verification')}</Text>
                         <View style={styles.countContainer}>
                             <TouchableOpacity
                                 style={styles.countButton}
@@ -542,7 +544,7 @@ const PickupOrderScreen = ({ navigation, route }) => {
                                     keyboardType="number-pad"
                                     placeholder="0"
                                 />
-                                <Text style={styles.countLabel}>Items</Text>
+                                <Text style={styles.countLabel}>{t('driver.pickup.items')}</Text>
                             </View>
                             <TouchableOpacity
                                 style={styles.countButton}
@@ -555,7 +557,7 @@ const PickupOrderScreen = ({ navigation, route }) => {
                             <View style={styles.warningBox}>
                                 <MaterialCommunityIcons name="alert" size={20} color={theme.colors.warning} />
                                 <Text style={styles.warningText}>
-                                    Mismatch: Expected {order.confirmed_item_count}
+                                    {t('driver.pickup.mismatchExpected', { count: order.confirmed_item_count })}
                                 </Text>
                             </View>
                         )}
@@ -563,7 +565,7 @@ const PickupOrderScreen = ({ navigation, route }) => {
 
                     {/* Photos */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Photos</Text>
+                        <Text style={styles.sectionTitle}>{t('driver.pickup.photos')}</Text>
                         <PhotoCapture
                             photos={photos}
                             onPhotosChange={setPhotos}

@@ -8,12 +8,14 @@ import {
     ActivityIndicator,
     RefreshControl
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { driverAPI } from '../../services/api';
 import theme from '../../theme/theme';
 
 const MyOrdersScreen = ({ navigation }) => {
+    const { t } = useTranslation();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -109,7 +111,7 @@ const MyOrdersScreen = ({ navigation }) => {
                         </View>
                         <View style={styles.infoItem}>
                             <MaterialCommunityIcons name="package-variant" size={16} color={theme.colors.textSecondary} />
-                            <Text style={styles.infoText}>{item.confirmed_item_count} items</Text>
+                            <Text style={styles.infoText}>{item.confirmed_item_count} {t('order.details.items')}</Text>
                         </View>
                     </View>
                 </View>
@@ -133,13 +135,13 @@ const MyOrdersScreen = ({ navigation }) => {
                     style={[styles.tab, activeTab === 'active' && styles.activeTab]}
                     onPress={() => setActiveTab('active')}
                 >
-                    <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>Active</Text>
+                    <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>{t('driver.myOrders.active')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'history' && styles.activeTab]}
                     onPress={() => setActiveTab('history')}
                 >
-                    <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>History</Text>
+                    <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>{t('driver.myOrders.history')}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -159,7 +161,7 @@ const MyOrdersScreen = ({ navigation }) => {
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <MaterialCommunityIcons name="clipboard-text-outline" size={64} color={theme.colors.textTertiary} />
-                            <Text style={styles.emptyText}>No {activeTab} orders</Text>
+                            <Text style={styles.emptyText}>{activeTab === 'active' ? t('driver.myOrders.noOrders') : t('driver.myOrders.noHistoryOrders')}</Text>
                         </View>
                     }
                 />

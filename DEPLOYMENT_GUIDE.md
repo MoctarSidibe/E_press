@@ -1,5 +1,7 @@
 # 🚀 E-Press Deployment Guide (Contabo Edition)
 
+> **🔄 Fresh server?** Use [**SERVER_REDEPLOYMENT.md**](./SERVER_REDEPLOYMENT.md) for a complete step-by-step redeploy.
+
 This guide will walk you through deploying your E-Press system online using **Contabo** as your VPS provider. Contabo is known for offering high-performance servers at very affordable prices.
 
 ## 🏗️ Architecture Overview
@@ -170,7 +172,7 @@ We will configure Nginx to serve the Admin Panel AND the API on the same IP.
 
         # 2. Proxy to Backend API
         location /api/ {
-            proxy_pass http://localhost:5000/; # Note the trailing slash
+            proxy_pass http://localhost:5000;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';

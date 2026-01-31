@@ -63,19 +63,39 @@ export const AuthProvider = ({ children }) => {
 
             return { success: true };
         } catch (error) {
-            console.error('[AuthContext] Login failed:', JSON.stringify(error.response?.data || error.message, null, 2));
+            console.error('[AuthContext] Login failed:', JSON.stringify({
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status,
+                url: error.config?.url
+            }, null, 2));
+            
+            // Handle different error formats
+            let errorMessage = 'Login failed';
+            if (error.response?.data?.error) {
+                errorMessage = error.response.data.error;
+            } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+                errorMessage = error.response.data.errors.map(err => err.msg || err.message || err).join(', ');
+            } else if (error.message) {
+                errorMessage = error.message;
+            } else if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network')) {
+                errorMessage = 'Network error. Please check your internet connection.';
+            }
+            
             return {
                 success: false,
-                error: error.response?.data?.error || 'Login failed'
+                error: errorMessage
             };
         }
     };
 
     const register = async (userData) => {
         try {
+            console.log('[AuthContext] Register attempt for:', userData.email);
             const response = await authAPI.register(userData);
             const { user, token } = response.data;
 
+            console.log('[AuthContext] Registration successful:', user.email, user.role);
             await AsyncStorage.setItem('auth_token', token);
             await AsyncStorage.setItem('user', JSON.stringify(user));
 
@@ -84,9 +104,26 @@ export const AuthProvider = ({ children }) => {
 
             return { success: true };
         } catch (error) {
+            console.error('[AuthContext] Registration failed:', JSON.stringify({
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status,
+                url: error.config?.url
+            }, null, 2));
+            
+            // Handle different error formats
+            let errorMessage = 'Registration failed';
+            if (error.response?.data?.error) {
+                errorMessage = error.response.data.error;
+            } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+                errorMessage = error.response.data.errors.map(err => err.msg || err.message || err).join(', ');
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
             return {
                 success: false,
-                error: error.response?.data?.error || 'Registration failed',
+                error: errorMessage,
             };
         }
     };

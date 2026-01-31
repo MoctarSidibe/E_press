@@ -7,6 +7,8 @@ class AuthService {
     async register(userData) {
         const { email, password, fullName, phone, role = 'customer' } = userData;
 
+        console.log(`[REGISTER] Attempting to register user: ${email}, role: ${role}`);
+
         // Check if user exists
         const existingUser = await db.query(
             'SELECT id FROM users WHERE email = $1',
@@ -14,11 +16,13 @@ class AuthService {
         );
 
         if (existingUser.rows.length > 0) {
+            console.log(`[REGISTER] Email already exists: ${email}`);
             throw new Error('Email already registered');
         }
 
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
+        console.log(`[REGISTER] Password hashed successfully for: ${email}`);
 
         // Insert user
         const result = await db.query(
@@ -29,6 +33,7 @@ class AuthService {
         );
 
         const user = result.rows[0];
+        console.log(`[REGISTER] User created successfully: ${user.email}, ID: ${user.id}`);
 
         // Generate token
         const token = this.generateToken(user);

@@ -1,30 +1,32 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import theme from '../../theme/theme';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const CleanerProfileScreen = () => {
+    const { t } = useTranslation();
     const { user, logout } = useAuth();
 
     const handleLogout = () => {
         Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
+            t('customer.profile.logout'),
+            t('customer.profile.confirmLogout'),
             [
                 {
-                    text: 'Cancel',
+                    text: t('common.cancel'),
                     style: 'cancel',
                 },
                 {
-                    text: 'Logout',
+                    text: t('customer.profile.logout'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
                             await logout();
                         } catch (error) {
                             console.error('Logout error:', error);
-                            Alert.alert('Error', 'Failed to logout');
+                            Alert.alert(t('common.error'), t('errors.generic'));
                         }
                     },
                 },
@@ -35,7 +37,7 @@ const CleanerProfileScreen = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Cleaner Profile</Text>
+                <Text style={styles.headerTitle}>{t('cleaner.profile.title')}</Text>
             </View>
 
             <View style={styles.content}>
@@ -43,16 +45,16 @@ const CleanerProfileScreen = () => {
                     <View style={styles.avatarContainer}>
                         <MaterialCommunityIcons name="account-circle" size={80} color={theme.colors.primary} />
                     </View>
-                    <Text style={styles.userName}>{user?.name || 'Cleaner'}</Text>
-                    <Text style={styles.userEmail}>{user?.email || 'No email'}</Text>
+                    <Text style={styles.userName}>{user?.name || user?.fullName || t('cleaner.profile.cleaner')}</Text>
+                    <Text style={styles.userEmail}>{user?.email || t('cleaner.profile.noEmail')}</Text>
                     <View style={styles.roleBadge}>
-                        <Text style={styles.roleText}>{user?.role?.toUpperCase() || 'CLEANER'}</Text>
+                        <Text style={styles.roleText}>{(user?.role || 'cleaner').toUpperCase()}</Text>
                     </View>
                 </View>
 
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                     <MaterialCommunityIcons name="logout" size={24} color="#FFF" style={styles.logoutIcon} />
-                    <Text style={styles.logoutText}>Logout</Text>
+                    <Text style={styles.logoutText}>{t('customer.profile.logout')}</Text>
                 </TouchableOpacity>
             </View>
         </View>

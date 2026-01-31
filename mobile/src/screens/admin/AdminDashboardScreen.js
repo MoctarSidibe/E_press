@@ -1,40 +1,45 @@
 // Admin placeholder screens - to be fully implemented
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import theme from '../../theme/theme';
 
 const AdminDashboardScreen = () => {
+    const { t } = useTranslation();
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Admin Dashboard</Text>
-            <Text style={styles.subtitle}>System statistics and analytics will be displayed here</Text>
+            <Text style={styles.title}>{t('admin.dashboard.title')}</Text>
+            <Text style={styles.subtitle}>{t('admin.dashboard.subtitle')}</Text>
         </View>
     );
 };
 
 export const AdminOrdersScreen = () => {
+    const { t } = useTranslation();
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>All Orders</Text>
-            <Text style={styles.subtitle}>Order management interface will be displayed here</Text>
+            <Text style={styles.title}>{t('admin.orders.title')}</Text>
+            <Text style={styles.subtitle}>{t('admin.orders.subtitle')}</Text>
         </View>
     );
 };
 
 export const AdminUsersScreen = () => {
+    const { t } = useTranslation();
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>User Management</Text>
-            <Text style={styles.subtitle}>Manage customers and drivers here</Text>
+            <Text style={styles.title}>{t('admin.users.title')}</Text>
+            <Text style={styles.subtitle}>{t('admin.users.subtitle')}</Text>
         </View>
     );
 };
 
 export const AdminProfileScreen = () => {
+    const { t } = useTranslation();
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Admin Profile</Text>
-            <Text style={styles.subtitle}>Admin settings and preferences</Text>
+            <Text style={styles.title}>{t('admin.profile.title')}</Text>
+            <Text style={styles.subtitle}>{t('admin.profile.subtitle')}</Text>
         </View>
     );
 };

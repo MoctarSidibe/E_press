@@ -1,16 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import theme from '../../theme/theme';
 
 const AdminProfileScreen = () => {
+    const { t } = useTranslation();
     const { logout } = useAuth();
 
     return (
         <View style={styles.container}>
-            <Text style={styles.text}>Admin Profile</Text>
+            <Text style={styles.text}>{t('admin.profile.title')}</Text>
             <TouchableOpacity style={styles.button} onPress={logout}>
-                <Text style={styles.buttonText}>Logout</Text>
+                <Text style={styles.buttonText}>{t('customer.profile.logout')}</Text>
             </TouchableOpacity>
         </View>
     );

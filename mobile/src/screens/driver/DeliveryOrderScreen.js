@@ -16,6 +16,7 @@ import {
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { routingService } from '../../services/routing.service';
+import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ordersAPI } from '../../services/api';
 import PhotoCapture from '../../components/PhotoCapture';
@@ -26,6 +27,7 @@ import theme from '../../theme/theme';
 const { height } = Dimensions.get('window');
 
 const DeliveryOrderScreen = ({ navigation, route }) => {
+    const { t } = useTranslation();
     const { orderId } = route.params;
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -97,7 +99,7 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
             // Pre-fill expected item count
             setItemCount(response.data.confirmed_item_count?.toString() || '');
         } catch (error) {
-            Alert.alert('Error', 'Failed to load order');
+            Alert.alert(t('common.error'), t('errors.generic'));
             navigation.goBack();
         } finally {
             setLoading(false);
@@ -135,28 +137,28 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
             case 'cleaning': // In case it was stuck there
             case 'ready':
                 return {
-                    label: 'START TRIP',
+                    label: t('driver.delivery.startTrip'),
                     color: theme.colors.primary,
                     icon: 'car-connected',
                     onPress: () => handleStatusUpdate('driver_en_route_delivery')
                 };
             case 'driver_en_route_delivery':
                 return {
-                    label: 'I HAVE ARRIVED',
+                    label: t('driver.delivery.arrived'),
                     color: theme.colors.success,
                     icon: 'map-marker-check',
                     onPress: () => handleStatusUpdate('arrived_delivery')
                 };
             case 'arrived_delivery':
                 return {
-                    label: 'START DELIVERY',
+                    label: t('driver.delivery.startDelivery'),
                     color: theme.colors.secondary, // Use secondary for delivery action
                     icon: 'package-variant-closed',
                     onPress: toggleBottomSheet
                 };
             default:
                 return {
-                    label: 'VIEW DETAILS',
+                    label: t('driver.delivery.viewDetails'),
                     color: theme.colors.textSecondary,
                     icon: 'chevron-up',
                     onPress: toggleBottomSheet
@@ -168,7 +170,7 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
 
     const handleNavigate = () => {
         if (!coords) {
-            Alert.alert("Error", "Location coordinates missing");
+            Alert.alert(t('common.error'), t('driver.delivery.locationMissing'));
             return;
         }
 
@@ -191,7 +193,7 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
             orderId,
             onScan: (scannedOrder) => {
                 setIsVerified(true);
-                Alert.alert('QR Verified', `Order #${scannedOrder.order_number} confirmed`);
+                Alert.alert(t('driver.delivery.qrVerified'), t('driver.delivery.qrVerifiedMessage', { orderNumber: scannedOrder.order_number }));
             }
         });
     };
@@ -199,28 +201,28 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
     const handleSaveSignature = (signatureData) => {
         setSignature(signatureData);
         setShowSignaturePad(false);
-        Alert.alert('Success', 'Signature captured');
+        Alert.alert(t('common.success'), t('driver.delivery.signatureCaptured'));
     };
 
     const handleSubmit = async () => {
         // Validation
         if (!itemCount || itemCount === '0') {
-            Alert.alert('Error', 'Please enter item count');
+            Alert.alert(t('common.error'), t('driver.delivery.enterItemCount'));
             return;
         }
 
         if (!signature) {
-            Alert.alert('Error', 'Customer signature is required');
+            Alert.alert(t('common.error'), t('driver.delivery.customerSignatureRequired'));
             return;
         }
 
         if (photos.length === 0) {
             Alert.alert(
-                'No Photos',
-                'It\'s recommended to take photos. Continue without photos?',
+                t('driver.pickup.noPhotos'),
+                t('driver.pickup.noPhotosContinue'),
                 [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Continue', onPress: submitDelivery }
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('common.continue'), onPress: submitDelivery }
                 ]
             );
             return;
@@ -249,17 +251,17 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
 
 
             Alert.alert(
-                'Delivery Complete!',
-                `Order delivered successfully. Payment: ${paymentMethod === 'cash' ? 'Cash' : paymentMethod === 'airtel_money' ? 'Airtel Money' : 'Moov Money'}`,
+                t('driver.delivery.deliveryComplete'),
+                t('driver.delivery.deliveryCompleteMessage', { payment: paymentMethod === 'cash' ? 'Cash' : paymentMethod === 'airtel_money' ? 'Airtel Money' : 'Moov Money' }),
                 [
                     {
-                        text: 'OK',
+                        text: t('common.ok'),
                         onPress: () => navigation.navigate('Available')
                     }
                 ]
             );
         } catch (error) {
-            Alert.alert('Error', error.response?.data?.error || 'Failed to complete delivery');
+            Alert.alert(t('common.error'), error.response?.data?.error || t('driver.delivery.failedCompleteDelivery'));
         } finally {
             setSubmitting(false);
         }
@@ -502,7 +504,7 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
                                 />
                             </View>
                             <Text style={[styles.actionLabel, isVerified && { color: theme.colors.success, fontWeight: 'bold' }]}>
-                                {isVerified ? 'Verified' : 'Scan QR'}
+                                {isVerified ? t('driver.delivery.verified') : t('driver.delivery.scanQR')}
                             </Text>
                         </TouchableOpacity>
 
@@ -514,13 +516,13 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
                                     color={signature ? theme.colors.success : theme.colors.primary}
                                 />
                             </View>
-                            <Text style={styles.actionLabel}>{signature ? "Signed" : "Signature"}</Text>
+                            <Text style={styles.actionLabel}>{signature ? t('driver.delivery.signed') : t('driver.delivery.signature')}</Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Verification & Items */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Verification</Text>
+                        <Text style={styles.sectionTitle}>{t('driver.delivery.verification')}</Text>
                         <View style={styles.countContainer}>
                             <TouchableOpacity
                                 style={styles.countButton}
@@ -536,7 +538,7 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
                                     keyboardType="number-pad"
                                     placeholder="0"
                                 />
-                                <Text style={styles.countLabel}>Items</Text>
+                                <Text style={styles.countLabel}>{t('driver.delivery.items')}</Text>
                             </View>
                             <TouchableOpacity
                                 style={styles.countButton}
@@ -549,7 +551,7 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
                             <View style={styles.warningBox}>
                                 <MaterialCommunityIcons name="alert" size={20} color={theme.colors.warning} />
                                 <Text style={styles.warningText}>
-                                    Mismatch: Expected {order.confirmed_item_count}
+                                    {t('driver.delivery.mismatchExpected', { count: order.confirmed_item_count })}
                                 </Text>
                             </View>
                         )}
@@ -557,10 +559,10 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
 
                     {/* Payment Method - Delivery Specific */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Payment Collection</Text>
+                        <Text style={styles.sectionTitle}>{t('driver.delivery.paymentCollection')}</Text>
                         <View style={styles.demoBanner}>
                             <MaterialCommunityIcons name="information" size={16} color={theme.colors.info} />
-                            <Text style={styles.demoBannerText}>Select payment method collected</Text>
+                            <Text style={styles.demoBannerText}>{t('driver.delivery.selectPaymentCollected')}</Text>
                         </View>
 
                         {['cash', 'airtel_money', 'moov_money'].map((method) => (
@@ -593,9 +595,9 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
 
                     {/* Photos */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Proof of Delivery</Text>
+                        <Text style={styles.sectionTitle}>{t('driver.delivery.proofOfDelivery')}</Text>
                         <Text style={styles.sectionSubtitle}>
-                            Take a photo of the delivered items
+                            {t('driver.delivery.proofOfDeliverySubtitle')}
                         </Text>
                         <PhotoCapture
                             photos={photos}
@@ -617,7 +619,7 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
                         {submitting ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.submitButtonText}>COMPLETE DELIVERY</Text>
+                            <Text style={styles.submitButtonText}>{t('driver.delivery.completeDelivery')}</Text>
                         )}
                     </TouchableOpacity>
                 </View>

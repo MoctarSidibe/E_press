@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import theme from '../theme/theme';
 
@@ -18,6 +19,7 @@ const Stack = createNativeStackNavigator();
 
 const DriverTabs = () => {
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
 
     return (
         <Tab.Navigator
@@ -49,14 +51,14 @@ const DriverTabs = () => {
             <Tab.Screen
                 name="Available"
                 component={AvailableOrdersScreen}
-                options={{ tabBarLabel: 'Available' }}
+                options={{ tabBarLabel: t('nav.available') }}
             />
             <Tab.Screen
                 name="MyOrders"
                 component={MyOrdersScreen}
-                options={{ tabBarLabel: 'My Orders' }}
+                options={{ tabBarLabel: t('nav.myOrders') }}
             />
-            <Tab.Screen name="Profile" component={DriverProfileScreen} />
+            <Tab.Screen name="Profile" component={DriverProfileScreen} options={{ tabBarLabel: t('nav.profile') }} />
         </Tab.Navigator>
     );
 };

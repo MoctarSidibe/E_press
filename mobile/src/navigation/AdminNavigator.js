@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import theme from '../theme/theme';
 
@@ -14,6 +15,7 @@ const Tab = createBottomTabNavigator();
 
 const AdminNavigator = () => {
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
 
     return (
         <Tab.Navigator
@@ -47,15 +49,15 @@ const AdminNavigator = () => {
             <Tab.Screen
                 name="Dashboard"
                 component={AdminDashboardScreen}
-                options={{ tabBarLabel: 'Dashboard' }}
+                options={{ tabBarLabel: t('nav.dashboard') }}
             />
             <Tab.Screen
                 name="AllOrders"
                 component={AdminOrdersScreen}
-                options={{ tabBarLabel: 'Orders' }}
+                options={{ tabBarLabel: t('nav.orders') }}
             />
-            <Tab.Screen name="Users" component={AdminUsersScreen} />
-            <Tab.Screen name="Profile" component={AdminProfileScreen} />
+            <Tab.Screen name="Users" component={AdminUsersScreen} options={{ tabBarLabel: t('nav.users') }} />
+            <Tab.Screen name="Profile" component={AdminProfileScreen} options={{ tabBarLabel: t('nav.profile') }} />
         </Tab.Navigator>
     );
 };

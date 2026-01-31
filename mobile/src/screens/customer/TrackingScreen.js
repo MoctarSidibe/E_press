@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import LeafletMapComponent from '../../components/map/LeafletMapComponent';
 import theme from '../../theme/theme';
 
 const TrackingScreen = ({ navigation, route }) => {
+    const { t } = useTranslation();
     const { orderId } = route.params || {};
 
     // Mock data for now - will connect to Socket.io later
@@ -35,7 +37,7 @@ const TrackingScreen = ({ navigation, route }) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Tracking Order #{orderId}</Text>
+                <Text style={styles.headerTitle}>{t('customer.tracking.title')} #{orderId}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -55,8 +57,8 @@ const TrackingScreen = ({ navigation, route }) => {
                         <MaterialCommunityIcons name="account" size={24} color="#fff" />
                     </View>
                     <View style={styles.driverInfo}>
-                        <Text style={styles.driverName}>John Doe</Text>
-                        <Text style={styles.driverStatus}>Arriving in 10 mins</Text>
+                        <Text style={styles.driverName}>{t('customer.tracking.courier')}</Text>
+                        <Text style={styles.driverStatus}>{t('customer.tracking.arriving')}</Text>
                     </View>
                     <View style={styles.actions}>
                         <TouchableOpacity style={styles.actionButton}>
@@ -73,7 +75,7 @@ const TrackingScreen = ({ navigation, route }) => {
                     <View style={styles.progressDot} />
                 </View>
 
-                <Text style={styles.statusText}>Driver is on the way to pickup</Text>
+                <Text style={styles.statusText}>{t('customer.tracking.onTheWay')}</Text>
             </View>
         </View>
     );

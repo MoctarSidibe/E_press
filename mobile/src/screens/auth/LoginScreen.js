@@ -13,11 +13,13 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import theme from '../../theme/theme';
 
 const LoginScreen = ({ navigation }) => {
     const { login } = useAuth();
+    const { t } = useTranslation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -63,12 +65,12 @@ const LoginScreen = ({ navigation }) => {
 
     const handleLogin = async () => {
         if (!email || !password) {
-            Alert.alert('Error', 'Please enter both email and password');
+            Alert.alert(t('common.error'), t('auth.login.errors.fillFields'));
             return;
         }
 
         if (!email.includes('@')) {
-            Alert.alert('Invalid Email', 'Please enter a valid email address (e.g., user@example.com)');
+            Alert.alert(t('common.error'), t('auth.login.errors.invalidEmail'));
             return;
         }
 
@@ -79,7 +81,7 @@ const LoginScreen = ({ navigation }) => {
             setLoading(false);
 
             if (!result.success) {
-                Alert.alert('Login Failed', result.error);
+                Alert.alert(t('auth.login.errors.failed'), result.error);
             }
         }, 500);
     };
@@ -126,7 +128,7 @@ const LoginScreen = ({ navigation }) => {
                 >
                     <TextInput
                         style={styles.input}
-                        placeholder="Email"
+                        placeholder={t('auth.login.email')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={email}
                         onChangeText={setEmail}
@@ -137,7 +139,7 @@ const LoginScreen = ({ navigation }) => {
 
                     <TextInput
                         style={styles.input}
-                        placeholder="Password"
+                        placeholder={t('auth.login.password')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={password}
                         onChangeText={setPassword}
@@ -154,7 +156,7 @@ const LoginScreen = ({ navigation }) => {
                         {loading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.buttonText}>Sign In</Text>
+                            <Text style={styles.buttonText}>{t('auth.login.signIn')}</Text>
                         )}
                     </TouchableOpacity>
 
@@ -164,7 +166,7 @@ const LoginScreen = ({ navigation }) => {
                         disabled={loading}
                     >
                         <Text style={styles.linkText}>
-                            Don't have an account? <Text style={styles.linkTextBold}>Join Us</Text>
+                            {t('auth.login.noAccount')} <Text style={styles.linkTextBold}>{t('auth.login.joinUs')}</Text>
                         </Text>
                     </TouchableOpacity>
                 </Animated.View>
@@ -179,7 +181,7 @@ const LoginScreen = ({ navigation }) => {
                         },
                     ]}
                 >
-                    <Text style={styles.demoText}>Demo: admin@epress.com / Admin@123</Text>
+                    <Text style={styles.demoText}>{t('auth.login.demoCredentials')}</Text>
                 </Animated.View>
             </View>
         </KeyboardAvoidingView>

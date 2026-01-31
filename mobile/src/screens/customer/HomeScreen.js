@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { categoriesAPI } from '../../services/api';
 import { getClothingIcon } from '../../config/icons';
@@ -62,11 +63,11 @@ const HomeScreen = ({ navigation }) => {
 
             // Group categories professionally
             const groups = {
-                'Everyday Wear': [],
-                'Outerwear & Formal': [],
-                'Professional & Uniforms': [],
-                'Household Linens': [],
-                'Children & Baby': []
+                [t('customer.home.groups.everyday')]: [],
+                [t('customer.home.groups.outerwear')]: [],
+                [t('customer.home.groups.professional')]: [],
+                [t('customer.home.groups.household')]: [],
+                [t('customer.home.groups.children')]: []
             };
 
             response.data.forEach(cat => {
@@ -107,11 +108,11 @@ const HomeScreen = ({ navigation }) => {
 
             // Set user-friendly error message
             if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
-                setError('Unable to connect to server. Please check your network connection.');
+                setError(t('errors.network'));
             } else if (err.code === 'ECONNABORTED') {
-                setError('Request timeout. Please try again.');
+                setError(t('errors.generic'));
             } else {
-                setError('Failed to load categories. Please try again.');
+                setError(t('errors.generic'));
             }
         } finally {
             setLoading(false);
@@ -184,8 +185,8 @@ const HomeScreen = ({ navigation }) => {
             {/* Header */}
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.greeting}>Hello, {user?.fullName || 'User'}</Text>
-                    <Text style={styles.subtitle}>What would you like to clean today?</Text>
+                    <Text style={styles.greeting}>{t('customer.home.greetingWithName', { name: user?.fullName || 'User' })}</Text>
+                    <Text style={styles.subtitle}>{t('customer.home.subtitle')}</Text>
                 </View>
                 <Image
                     source={require('../../../assets/images/logo customer.gif')}
@@ -237,9 +238,9 @@ const HomeScreen = ({ navigation }) => {
                                 />
                             </View>
                             <View style={styles.buttonContent}>
-                                <Text style={styles.primaryButtonTitle}>New Order</Text>
+                                <Text style={styles.primaryButtonTitle}>{t('customer.home.newOrder')}</Text>
                                 <Text style={styles.primaryButtonSubtitle}>
-                                    Schedule a pickup
+                                    {t('customer.home.schedulePickup')}
                                 </Text>
                             </View>
                             <View style={styles.arrowContainer}>
@@ -251,10 +252,10 @@ const HomeScreen = ({ navigation }) => {
 
                 {/* Services */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Our Services</Text>
+                    <Text style={styles.sectionTitle}>{t('customer.home.ourServices')}</Text>
 
                     <View>
-                        {['Everyday Wear', 'Outerwear & Formal', 'Professional & Uniforms', 'Household Linens', 'Children & Baby'].map(groupTitle => (
+                        {[t('customer.home.groups.everyday'), t('customer.home.groups.outerwear'), t('customer.home.groups.professional'), t('customer.home.groups.household'), t('customer.home.groups.children')].map(groupTitle => (
                             groupedCategories[groupTitle]?.length > 0 && (
                                 <View key={groupTitle} style={{ marginBottom: theme.spacing.lg }}>
                                     <Text style={{
@@ -400,15 +401,15 @@ const HomeScreen = ({ navigation }) => {
                         <View style={styles.featureItem}>
                             <View style={[styles.featureIcon, { backgroundColor: '#E3F2FD' }]}>
                                 <Image
-                                    source={require('../../../assets/images/icon_cleaning.png')}
+                                    source={require('../../../assets/images/icon_cleaning-removebg-preview.png')}
                                     style={{ width: 32, height: 32 }}
                                     contentFit="contain"
                                 />
                             </View>
                             <View style={styles.featureText}>
-                                <Text style={styles.featureTitle}>Premium Cleaning</Text>
+                                <Text style={styles.featureTitle}>{t('customer.home.premiumCleaning')}</Text>
                                 <Text style={styles.featureDescription}>
-                                    Eco-friendly quality care
+                                    {t('customer.home.premiumCleaningDesc')}
                                 </Text>
                             </View>
                         </View>
@@ -418,9 +419,9 @@ const HomeScreen = ({ navigation }) => {
                                 <MaterialCommunityIcons name="shield-check" size={24} color={theme.colors.success} />
                             </View>
                             <View style={styles.featureText}>
-                                <Text style={styles.featureTitle}>Quality Guaranteed</Text>
+                                <Text style={styles.featureTitle}>{t('customer.home.qualityGuaranteed')}</Text>
                                 <Text style={styles.featureDescription}>
-                                    Professional cleaning experts
+                                    {t('customer.home.qualityGuaranteedDesc')}
                                 </Text>
                             </View>
                         </View>
@@ -430,9 +431,9 @@ const HomeScreen = ({ navigation }) => {
                                 <MaterialCommunityIcons name="map-marker" size={24} color={theme.colors.secondary} />
                             </View>
                             <View style={styles.featureText}>
-                                <Text style={styles.featureTitle}>Real-time Tracking</Text>
+                                <Text style={styles.featureTitle}>{t('customer.home.realTimeTracking')}</Text>
                                 <Text style={styles.featureDescription}>
-                                    Track your order every step
+                                    {t('customer.home.realTimeTrackingDesc')}
                                 </Text>
                             </View>
                         </View>
@@ -452,7 +453,10 @@ const HomeScreen = ({ navigation }) => {
                 >
                     <View style={styles.floatingCardHeader}>
                         <Text style={styles.floatingCardTitle}>
-                            {selectedItems.length} {selectedItems.length === 1 ? 'Item' : 'Items'} Selected
+                            {t('customer.home.itemsSelected', { 
+                                count: selectedItems.length, 
+                                item: selectedItems.length === 1 ? t('customer.home.item') : t('customer.home.items')
+                            })}
                         </Text>
                         <Text style={styles.floatingCardTotal}>
                             ${calculateEstimatedTotal().toFixed(2)}
@@ -502,7 +506,7 @@ const HomeScreen = ({ navigation }) => {
                         onPress={proceedToOrder}
                         activeOpacity={0.8}
                     >
-                        <Text style={styles.proceedButtonText}>Proceed to Order</Text>
+                        <Text style={styles.proceedButtonText}>{t('customer.home.createOrder')}</Text>
                         <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
                     </TouchableOpacity>
                 </Animated.View>

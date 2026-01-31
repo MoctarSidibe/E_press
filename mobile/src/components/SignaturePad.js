@@ -7,6 +7,7 @@ import {
     Modal,
     Platform
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import SignatureScreen from 'react-native-signature-canvas';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import theme from '../theme/theme';
@@ -49,7 +50,7 @@ const SignaturePad = ({ onSave, onCancel, visible }) => {
         >
             <View style={styles.container}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>Customer Signature</Text>
+                    <Text style={styles.title}>{t('common.customerSignature')}</Text>
                     <TouchableOpacity onPress={onCancel} style={styles.closeButton}>
                         <MaterialCommunityIcons name="close" size={26} color={theme.colors.text} />
                     </TouchableOpacity>
@@ -72,13 +73,13 @@ const SignaturePad = ({ onSave, onCancel, visible }) => {
                         style={styles.clearButton}
                         onPress={handleClear}
                     >
-                        <Text style={styles.clearText}>Clear</Text>
+                        <Text style={styles.clearText}>{t('common.clear')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.saveButton}
                         onPress={handleConfirm}
                     >
-                        <Text style={styles.saveText}>Save Signature</Text>
+                        <Text style={styles.saveText}>{t('common.saveSignature')}</Text>
                     </TouchableOpacity>
                 </View>
             </View>

@@ -7,12 +7,14 @@ import {
     RefreshControl,
     ActivityIndicator
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ordersAPI } from '../../services/api';
 import socketService from '../../services/socket';
 import theme from '../../theme/theme';
 
 const CleanerReadyScreen = ({ navigation }) => {
+    const { t } = useTranslation();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -90,7 +92,7 @@ const CleanerReadyScreen = ({ navigation }) => {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>Loading ready orders...</Text>
+                <Text style={styles.loadingText}>{t('cleaner.ready.loading')}</Text>
             </View>
         );
     }
@@ -101,8 +103,8 @@ const CleanerReadyScreen = ({ navigation }) => {
             <View style={styles.header}>
                 <MaterialCommunityIcons name="truck-delivery-outline" size={32} color={theme.colors.text} />
                 <View style={styles.headerTextContainer}>
-                    <Text style={styles.headerTitle}>Ready for Delivery</Text>
-                    <Text style={styles.headerSubtitle}>{orders.length} orders waiting for driver</Text>
+                    <Text style={styles.headerTitle}>{t('cleaner.ready.title')}</Text>
+                    <Text style={styles.headerSubtitle}>{t('cleaner.ready.subtitle', { count: orders.length })}</Text>
                 </View>
             </View>
 
@@ -114,9 +116,9 @@ const CleanerReadyScreen = ({ navigation }) => {
                         size={80}
                         color={theme.colors.textTertiary}
                     />
-                    <Text style={styles.emptyTitle}>No Pending Pickups</Text>
+                    <Text style={styles.emptyTitle}>{t('cleaner.ready.noPending')}</Text>
                     <Text style={styles.emptySubtitle}>
-                        All ready orders have been picked up by couriers
+                        {t('cleaner.ready.noPendingDesc')}
                     </Text>
                 </View>
             ) : (

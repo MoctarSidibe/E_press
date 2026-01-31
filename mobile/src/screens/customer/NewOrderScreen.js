@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as FileSystem from 'expo-file-system';
 import {
     View,
@@ -19,6 +19,7 @@ import { WebView } from 'react-native-webview';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useTranslation } from 'react-i18next';
 import { categoriesAPI, ordersAPI, locationsAPI } from '../../services/api';
 import { getClothingIcon } from '../../config/icons';
 import theme from '../../theme/theme';
@@ -27,6 +28,7 @@ import { useReceiptPDF } from '../../hooks/useReceiptPDF';
 import OrderReceipt from '../../components/OrderReceipt';
 
 const NewOrderScreen = ({ navigation, route }) => {
+    const { t } = useTranslation();
     const [step, setStep] = useState(1); // 1: Items, 2: Locations, 3: Schedule, 4: Payment
     const [categories, setCategories] = useState([]);
     const [groupedItems, setGroupedItems] = useState({});
@@ -174,7 +176,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                 }));
             }
         } catch (error) {
-            Alert.alert('Error', 'Failed to load data');
+            Alert.alert(t('common.error'), t('customer.newOrder.failedLoadData'));
             console.error(error);
         } finally {
             setLoading(false);
@@ -220,7 +222,7 @@ const NewOrderScreen = ({ navigation, route }) => {
 
     const handleTimeSlotSelect = (slot) => {
         if (!selectedDate) {
-            Alert.alert('Select Date First', 'Please select a pickup date before choosing a time slot');
+            Alert.alert(t('customer.newOrder.selectDateFirst'), t('customer.newOrder.selectDateFirstMessage'));
             return;
         }
 
@@ -319,17 +321,17 @@ const NewOrderScreen = ({ navigation, route }) => {
     const handleSubmitOrder = async () => {
         // Validation
         if (orderData.items.length === 0) {
-            Alert.alert('Error', 'Please select at least one item');
+            Alert.alert(t('common.error'), t('customer.newOrder.selectOneItem'));
             return;
         }
 
         if (!orderData.pickupLocationId || !orderData.deliveryLocationId) {
-            Alert.alert('Error', 'Please select pickup and delivery locations');
+            Alert.alert(t('common.error'), t('customer.newOrder.selectPickupDelivery'));
             return;
         }
 
         if (orderData.pickupType === 'scheduled' && !orderData.pickupScheduledAt) {
-            Alert.alert('Error', 'Please select a pickup time');
+            Alert.alert(t('common.error'), t('customer.newOrder.selectPickupTime'));
             return;
         }
 
@@ -413,7 +415,7 @@ const NewOrderScreen = ({ navigation, route }) => {
 
     const handleAddLocation = async () => {
         if (!newLocation.label || !newLocation.address) {
-            Alert.alert('Error', 'Please fill in all fields');
+            Alert.alert(t('common.error'), t('customer.newOrder.fillAllFields'));
             return;
         }
 
@@ -425,12 +427,12 @@ const NewOrderScreen = ({ navigation, route }) => {
                 setLocations(locations.map(loc =>
                     loc.id === editingLocationId ? response.data : loc
                 ));
-                Alert.alert('Success', 'Location updated successfully');
+                Alert.alert(t('common.success'), t('customer.newOrder.locationUpdated'));
             } else {
                 // Create new location
                 const response = await locationsAPI.create(newLocation);
                 setLocations([...locations, response.data]);
-                Alert.alert('Success', 'Location added successfully');
+                Alert.alert(t('common.success'), t('customer.newOrder.locationAdded'));
             }
 
             setShowAddLocation(false);
@@ -440,7 +442,7 @@ const NewOrderScreen = ({ navigation, route }) => {
             setMarkerCoordinate(null);
         } catch (error) {
             console.error('[NewOrderScreen] Location save error:', error);
-            Alert.alert('Error', 'Failed to save location');
+            Alert.alert(t('common.error'), t('customer.newOrder.failedSaveLocation'));
         } finally {
             setAddingLocation(false);
         }
@@ -497,12 +499,12 @@ const NewOrderScreen = ({ navigation, route }) => {
 
     const handleDeleteLocation = (locationId) => {
         Alert.alert(
-            'Delete Location',
-            'Are you sure you want to delete this location?',
+            t('customer.newOrder.deleteLocation'),
+            t('customer.newOrder.deleteLocationConfirm'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Delete',
+                    text: t('common.delete'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -517,10 +519,10 @@ const NewOrderScreen = ({ navigation, route }) => {
                                 setOrderData(prev => ({ ...prev, deliveryLocationId: null }));
                             }
 
-                            Alert.alert('Success', 'Location deleted');
+                            Alert.alert(t('common.success'), t('customer.newOrder.locationDeleted'));
                         } catch (error) {
                             console.error('[NewOrderScreen] Delete location error:', error);
-                            Alert.alert('Error', 'Failed to delete location');
+                            Alert.alert(t('common.error'), t('customer.newOrder.failedDeleteLocation'));
                         }
                     }
                 }
@@ -538,9 +540,9 @@ const NewOrderScreen = ({ navigation, route }) => {
                 getCurrentLocation();
             } else {
                 Alert.alert(
-                    'Permission Needed',
-                    'Location permission is needed to auto-fill your address',
-                    [{ text: 'OK' }]
+                    t('common.permissionNeeded'),
+                    t('customer.newOrder.permissionNeededMessage'),
+                    [{ text: t('common.ok') }]
                 );
             }
         } catch (error) {
@@ -578,9 +580,9 @@ const NewOrderScreen = ({ navigation, route }) => {
         } catch (error) {
             console.error('Location error:', error);
             Alert.alert(
-                'Location Error',
-                'Could not get your location. Please enter address manually.',
-                [{ text: 'OK' }]
+                t('customer.newOrder.locationError'),
+                t('customer.newOrder.locationErrorMessage'),
+                [{ text: t('common.ok') }]
             );
         } finally {
             setFetchingLocation(false);
@@ -659,7 +661,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                         <MaterialCommunityIcons name="close" size={24} color={theme.colors.text} />
                     </TouchableOpacity>
                     <Text style={styles.modalHeaderTitle}>
-                        {editingLocationId ? 'Edit Location' : 'Add New Location'}
+                        {editingLocationId ? t('customer.newOrder.editLocation') : t('customer.newOrder.addNewLocation')}
                     </Text>
                     <View style={{ width: 24 }} />
                 </View>
@@ -687,8 +689,8 @@ const NewOrderScreen = ({ navigation, route }) => {
                                     {markerCoordinate && markerCoordinate.latitude && markerCoordinate.longitude && (
                                         <Marker
                                             coordinate={markerCoordinate}
-                                            title="Delivery Location"
-                                            description="Drag to adjust position"
+                                            title={t('customer.newOrder.deliveryLocation')}
+                                            description={t('customer.newOrder.dragToAdjust')}
                                             pinColor={theme.colors.primary}
                                             draggable={true}
                                             onDragEnd={handleMarkerDragEnd}
@@ -758,7 +760,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                         <Text style={styles.formLabel}>Label</Text>
                         <TextInput
                             style={styles.modalInput}
-                            placeholder="e.g., Home, Office, Gym"
+                            placeholder={t('customer.newOrder.placeholderLabel')}
                             placeholderTextColor={theme.colors.textTertiary}
                             value={newLocation.label}
                             onChangeText={(text) => setNewLocation({ ...newLocation, label: text })}
@@ -767,7 +769,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                         <Text style={styles.formLabel}>Address</Text>
                         <TextInput
                             style={[styles.modalInput, styles.addressInput]}
-                            placeholder="Full address"
+                            placeholder={t('customer.newOrder.placeholderAddress')}
                             placeholderTextColor={theme.colors.textTertiary}
                             value={newLocation.address}
                             onChangeText={(text) => setNewLocation({ ...newLocation, address: text })}
@@ -1056,7 +1058,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                             onPress={handleOpenAddLocation}
                         >
                             <MaterialCommunityIcons name="plus-circle" size={20} color={theme.colors.primary} />
-                            <Text style={styles.addLocationButtonText}>Add New Location</Text>
+                            <Text style={styles.addLocationButtonText}>{t('customer.newOrder.addNewLocation')}</Text>
                         </TouchableOpacity>
 
                         {/* Location Management List */}
@@ -1117,7 +1119,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                     ))}
 
                     {/* Delivery Location Selection */}
-                    <Text style={[styles.sectionLabel, { marginTop: theme.spacing.lg }]}>Delivery Location</Text>
+                    <Text style={[styles.sectionLabel, { marginTop: theme.spacing.lg }]}>{t('customer.newOrder.deliveryLocation')}</Text>
                     {locations.map((location) => (
                         <TouchableOpacity
                             key={`delivery-${location.id}`}

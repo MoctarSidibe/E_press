@@ -1,20 +1,22 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../../context/AuthContext';
 import theme from '../../theme/theme';
 
 const DriverProfileScreen = () => {
+    const { t } = useTranslation();
     const { logout, user } = useAuth();
 
     const handleLogout = () => {
         Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
+            t('customer.profile.logout'),
+            t('customer.profile.confirmLogout'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Logout',
+                    text: t('customer.profile.logout'),
                     style: 'destructive',
                     onPress: logout
                 }
@@ -30,22 +32,22 @@ const DriverProfileScreen = () => {
                         {user?.full_name?.substring(0, 2).toUpperCase() || 'DR'}
                     </Text>
                 </View>
-                <Text style={styles.name}>{user?.full_name || 'Driver'}</Text>
+                <Text style={styles.name}>{user?.full_name || t('driver.profile.driver')}</Text>
                 <Text style={styles.email}>{user?.email}</Text>
                 <View style={styles.badge}>
                     <MaterialCommunityIcons name="check-decagram" size={16} color="#fff" />
-                    <Text style={styles.badgeText}>Verified Driver</Text>
+                    <Text style={styles.badgeText}>{t('driver.profile.verified')}</Text>
                 </View>
             </View>
 
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Account</Text>
+                <Text style={styles.sectionTitle}>{t('driver.profile.account')}</Text>
 
                 <TouchableOpacity style={styles.menuItem}>
                     <View style={styles.menuIcon}>
                         <MaterialCommunityIcons name="account-cog" size={24} color={theme.colors.primary} />
                     </View>
-                    <Text style={styles.menuText}>Personal Information</Text>
+                    <Text style={styles.menuText}>{t('customer.profile.personalInfo')}</Text>
                     <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.textTertiary} />
                 </TouchableOpacity>
 
@@ -53,26 +55,26 @@ const DriverProfileScreen = () => {
                     <View style={styles.menuIcon}>
                         <MaterialCommunityIcons name="bank" size={24} color={theme.colors.primary} />
                     </View>
-                    <Text style={styles.menuText}>Bank Details</Text>
+                    <Text style={styles.menuText}>{t('driver.profile.bankDetails')}</Text>
                     <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.textTertiary} />
                 </TouchableOpacity>
             </View>
 
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Preferences</Text>
+                <Text style={styles.sectionTitle}>{t('driver.profile.preferences')}</Text>
 
                 <TouchableOpacity style={styles.menuItem}>
                     <View style={styles.menuIcon}>
                         <MaterialCommunityIcons name="bell-outline" size={24} color={theme.colors.primary} />
                     </View>
-                    <Text style={styles.menuText}>Notifications</Text>
+                    <Text style={styles.menuText}>{t('driver.profile.notifications')}</Text>
                     <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.textTertiary} />
                 </TouchableOpacity>
             </View>
 
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                 <MaterialCommunityIcons name="logout" size={20} color={theme.colors.error} />
-                <Text style={styles.logoutText}>Logout</Text>
+                <Text style={styles.logoutText}>{t('customer.profile.logout')}</Text>
             </TouchableOpacity>
 
             <Text style={styles.version}>Version 1.0.0</Text>

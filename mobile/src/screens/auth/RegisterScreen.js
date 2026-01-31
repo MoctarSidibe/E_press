@@ -13,11 +13,13 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import theme from '../../theme/theme';
 
 const RegisterScreen = ({ navigation }) => {
     const { register } = useAuth();
+    const { t } = useTranslation();
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
@@ -31,17 +33,17 @@ const RegisterScreen = ({ navigation }) => {
     const handleRegister = async () => {
         // Validation
         if (!formData.fullName || !formData.email || !formData.phone || !formData.password) {
-            Alert.alert('Error', 'Please fill in all fields');
+            Alert.alert(t('common.error'), t('auth.register.errors.fillAll'));
             return;
         }
 
         if (formData.password.length < 6) {
-            Alert.alert('Error', 'Password must be at least 6 characters');
+            Alert.alert(t('common.error'), t('auth.register.errors.passwordLength'));
             return;
         }
 
         if (formData.password !== formData.confirmPassword) {
-            Alert.alert('Error', 'Passwords do not match');
+            Alert.alert(t('common.error'), t('auth.register.errors.passwordMatch'));
             return;
         }
 
@@ -50,7 +52,7 @@ const RegisterScreen = ({ navigation }) => {
         setLoading(false);
 
         if (!result.success) {
-            Alert.alert('Registration Failed', result.error);
+            Alert.alert(t('auth.register.errors.failed'), result.error);
         }
     };
 
@@ -75,15 +77,15 @@ const RegisterScreen = ({ navigation }) => {
                         <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
                     </TouchableOpacity>
 
-                    <Text style={styles.title}>Create Account</Text>
-                    <Text style={styles.subtitle}>Join E-Press Laundry today</Text>
+                    <Text style={styles.title}>{t('auth.register.title')}</Text>
+                    <Text style={styles.subtitle}>{t('auth.register.subtitle')}</Text>
                 </View>
 
                 {/* Form */}
                 <View style={styles.form}>
                     <TextInput
                         style={styles.input}
-                        placeholder="Full Name"
+                        placeholder={t('auth.register.fullName')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={formData.fullName}
                         onChangeText={(text) => setFormData({ ...formData, fullName: text })}
@@ -92,7 +94,7 @@ const RegisterScreen = ({ navigation }) => {
 
                     <TextInput
                         style={styles.input}
-                        placeholder="Email"
+                        placeholder={t('auth.register.email')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={formData.email}
                         onChangeText={(text) => setFormData({ ...formData, email: text })}
@@ -103,7 +105,7 @@ const RegisterScreen = ({ navigation }) => {
 
                     <TextInput
                         style={styles.input}
-                        placeholder="Phone Number"
+                        placeholder={t('auth.register.phone')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={formData.phone}
                         onChangeText={(text) => setFormData({ ...formData, phone: text })}
@@ -113,7 +115,7 @@ const RegisterScreen = ({ navigation }) => {
 
                     <TextInput
                         style={styles.input}
-                        placeholder="Password"
+                        placeholder={t('auth.register.password')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={formData.password}
                         onChangeText={(text) => setFormData({ ...formData, password: text })}
@@ -124,7 +126,7 @@ const RegisterScreen = ({ navigation }) => {
 
                     <TextInput
                         style={styles.input}
-                        placeholder="Confirm Password"
+                        placeholder={t('auth.register.confirmPassword')}
                         placeholderTextColor={theme.colors.textTertiary}
                         value={formData.confirmPassword}
                         onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
@@ -134,7 +136,7 @@ const RegisterScreen = ({ navigation }) => {
                     />
 
                     {/* Role Selection */}
-                    <Text style={styles.roleLabel}>I am a:</Text>
+                    <Text style={styles.roleLabel}>{t('auth.register.role')}</Text>
                     <View style={styles.roleButtons}>
                         <TouchableOpacity
                             style={[
@@ -155,7 +157,7 @@ const RegisterScreen = ({ navigation }) => {
                                     formData.role === 'customer' && styles.roleButtonTextActive,
                                 ]}
                             >
-                                Customer
+                                {t('auth.register.customer')}
                             </Text>
                         </TouchableOpacity>
 
@@ -178,7 +180,30 @@ const RegisterScreen = ({ navigation }) => {
                                     formData.role === 'driver' && styles.roleButtonTextActive,
                                 ]}
                             >
-                                Coursier
+                                {t('auth.register.driver')}
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[
+                                styles.roleButton,
+                                formData.role === 'cleaner' && styles.roleButtonActive,
+                            ]}
+                            onPress={() => setFormData({ ...formData, role: 'cleaner' })}
+                            disabled={loading}
+                        >
+                            <Ionicons
+                                name="sparkles"
+                                size={24}
+                                color={formData.role === 'cleaner' ? '#fff' : theme.colors.text}
+                            />
+                            <Text
+                                style={[
+                                    styles.roleButtonText,
+                                    formData.role === 'cleaner' && styles.roleButtonTextActive,
+                                ]}
+                            >
+                                {t('auth.register.cleaner')}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -191,7 +216,7 @@ const RegisterScreen = ({ navigation }) => {
                         {loading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.buttonText}>Create Account</Text>
+                            <Text style={styles.buttonText}>{t('auth.register.createAccount')}</Text>
                         )}
                     </TouchableOpacity>
 
@@ -201,7 +226,7 @@ const RegisterScreen = ({ navigation }) => {
                         disabled={loading}
                     >
                         <Text style={styles.linkText}>
-                            Already have an account? <Text style={styles.linkTextBold}>Sign In</Text>
+                            {t('auth.register.hasAccount')} <Text style={styles.linkTextBold}>{t('auth.register.signIn')}</Text>
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -269,11 +294,13 @@ const styles = StyleSheet.create({
     },
     roleButtons: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: theme.spacing.md,
         marginBottom: theme.spacing.lg,
     },
     roleButton: {
         flex: 1,
+        minWidth: 90,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',

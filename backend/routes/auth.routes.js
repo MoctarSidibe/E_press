@@ -23,12 +23,18 @@ router.post('/register', validateRegister, async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
+            // Format validation errors for better mobile app compatibility
+            const errorMessages = errors.array().map(err => err.msg).join(', ');
+            return res.status(400).json({ 
+                error: errorMessages,
+                errors: errors.array() // Keep for backward compatibility
+            });
         }
 
         const result = await authService.register(req.body);
         res.status(201).json(result);
     } catch (error) {
+        console.error('[REGISTER ERROR]', error.message);
         res.status(400).json({ error: error.message });
     }
 });
@@ -38,7 +44,12 @@ router.post('/login', validateLogin, async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
+            // Format validation errors for better mobile app compatibility
+            const errorMessages = errors.array().map(err => err.msg).join(', ');
+            return res.status(400).json({ 
+                error: errorMessages,
+                errors: errors.array() // Keep for backward compatibility
+            });
         }
 
         const { email, password } = req.body;
@@ -46,6 +57,7 @@ router.post('/login', validateLogin, async (req, res) => {
         const result = await authService.login(email, password);
         res.json(result);
     } catch (error) {
+        console.error('[LOGIN ERROR]', error.message);
         res.status(401).json({ error: error.message });
     }
 });

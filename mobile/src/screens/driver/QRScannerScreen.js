@@ -8,12 +8,14 @@ import {
     Vibration,
     Button
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ordersAPI } from '../../services/api';
 import theme from '../../theme/theme';
 
 const QRScannerScreen = ({ navigation, route }) => {
+    const { t } = useTranslation();
     const { orderId, onScan } = route.params || {};
     const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
@@ -57,16 +59,16 @@ const QRScannerScreen = ({ navigation, route }) => {
                 }
             } else {
                 Alert.alert(
-                    'Invalid QR Code',
-                    'This QR code is not valid for an order.',
-                    [{ text: 'OK', onPress: () => setScanned(false) }]
+                    t('driver.pickup.invalidQR'),
+                    t('driver.pickup.invalidQRMessage'),
+                    [{ text: t('common.ok'), onPress: () => setScanned(false) }]
                 );
             }
         } catch (error) {
             Alert.alert(
-                'Error',
-                error.response?.data?.error || 'Failed to validate QR code',
-                [{ text: 'OK', onPress: () => setScanned(false) }]
+                t('common.error'),
+                error.response?.data?.error || t('driver.pickup.validateFailed'),
+                [{ text: t('common.ok'), onPress: () => setScanned(false) }]
             );
         }
     };
@@ -75,7 +77,7 @@ const QRScannerScreen = ({ navigation, route }) => {
         // Camera permissions are still loading
         return (
             <View style={styles.container}>
-                <Text style={styles.permissionText}>Requesting camera permission...</Text>
+                <Text style={styles.permissionText}>{t('driver.pickup.requestingPermission')}</Text>
             </View>
         );
     }
@@ -84,12 +86,12 @@ const QRScannerScreen = ({ navigation, route }) => {
         return (
             <View style={styles.container}>
                 <MaterialCommunityIcons name="camera-off" size={64} color={theme.colors.textTertiary} />
-                <Text style={styles.permissionText}>No access to camera</Text>
+                <Text style={styles.permissionText}>{t('driver.pickup.noCameraAccess')}</Text>
                 <TouchableOpacity
                     style={styles.permissionButton}
                     onPress={requestPermission}
                 >
-                    <Text style={styles.permissionButtonText}>Grant Permission</Text>
+                    <Text style={styles.permissionButtonText}>{t('driver.pickup.grantPermission')}</Text>
                 </TouchableOpacity>
             </View>
         );

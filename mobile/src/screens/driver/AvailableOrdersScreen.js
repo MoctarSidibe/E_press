@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ordersAPI } from '../../services/api';
 import socketService from '../../services/socket';
@@ -23,6 +24,7 @@ const CARD_WIDTH = width * 0.85;
 const SPACING = (width - CARD_WIDTH) / 2;
 
 const AvailableOrdersScreen = ({ navigation }) => {
+    const { t } = useTranslation();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -97,12 +99,12 @@ const AvailableOrdersScreen = ({ navigation }) => {
 
     const handleAcceptOrder = async (order) => {
         Alert.alert(
-            'Accept Order',
-            `Accept this ${order.type}?`,
+            t('driver.availableOrders.acceptOrder'),
+            t('driver.availableOrders.acceptConfirm', { type: order.type === 'pickup' ? t('driver.myOrders.pickup') : t('driver.myOrders.delivery') }),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Acccepter',
+                    text: t('driver.availableOrders.accept'),
                     onPress: async () => {
                         setAcceptingOrderId(order.id);
                         try {
@@ -118,7 +120,7 @@ const AvailableOrdersScreen = ({ navigation }) => {
                                 navigation.navigate('DeliveryOrder', { orderId: order.id });
                             }
                         } catch (error) {
-                            Alert.alert('Error', 'Failed to accept order.');
+                            Alert.alert(t('common.error'), t('driver.availableOrders.acceptFailed'));
                         } finally {
                             setAcceptingOrderId(null);
                             loadAvailableOrders();
@@ -180,12 +182,12 @@ const AvailableOrdersScreen = ({ navigation }) => {
                                 size={16}
                                 color="#fff"
                             />
-                            <Text style={styles.badgeText}>{isPickup ? 'PICKUP' : 'DELIVERY'}</Text>
+                            <Text style={styles.badgeText}>{isPickup ? t('driver.myOrders.pickup').toUpperCase() : t('driver.myOrders.delivery').toUpperCase()}</Text>
                         </View>
                         {item.is_express && (
                             <View style={styles.expressBadge}>
                                 <MaterialCommunityIcons name="flash" size={14} color="#fff" />
-                                <Text style={styles.badgeText}>EXPRESS</Text>
+                                <Text style={styles.badgeText}>{t('driver.availableOrders.express')}</Text>
                             </View>
                         )}
                     </View>
@@ -197,7 +199,7 @@ const AvailableOrdersScreen = ({ navigation }) => {
                             {address}
                         </Text>
                         <Text style={styles.itemsText}>
-                            {item.confirmed_item_count} items • Order #{item.order_number}
+                            {item.confirmed_item_count} {t('order.details.items')} • {t('order.details.orderId')} #{item.order_number}
                         </Text>
                     </View>
 
@@ -210,7 +212,7 @@ const AvailableOrdersScreen = ({ navigation }) => {
                         {acceptingOrderId === item.id ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.acceptButtonText}>ACCEPT ORDER</Text>
+                            <Text style={styles.acceptButtonText}>{t('driver.availableOrders.acceptOrder').toUpperCase()}</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -302,7 +304,7 @@ const AvailableOrdersScreen = ({ navigation }) => {
 
             {/* Header Overlay */}
             <View style={styles.headerOverlay}>
-                <Text style={styles.headerTitle}>Available Orders</Text>
+                <Text style={styles.headerTitle}>{t('driver.availableOrders.title')}</Text>
                 <TouchableOpacity onPress={loadAvailableOrders} style={styles.refreshButton}>
                     <MaterialCommunityIcons name="refresh" size={24} color={theme.colors.text} />
                 </TouchableOpacity>
@@ -355,9 +357,9 @@ const AvailableOrdersScreen = ({ navigation }) => {
                             <View style={styles.emptyIconContainer}>
                                 <MaterialCommunityIcons name="clipboard-text-off-outline" size={48} color={theme.colors.textSecondary} />
                             </View>
-                            <Text style={styles.emptyText}>No available orders</Text>
+                            <Text style={styles.emptyText}>{t('driver.availableOrders.noOrders')}</Text>
                             <TouchableOpacity onPress={loadAvailableOrders} style={styles.retryButton}>
-                                <Text style={styles.retryText}>Check again</Text>
+                                <Text style={styles.retryText}>{t('driver.availableOrders.checkAgain')}</Text>
                             </TouchableOpacity>
                         </View>
                     }

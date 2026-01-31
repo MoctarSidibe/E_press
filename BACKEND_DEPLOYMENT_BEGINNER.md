@@ -168,7 +168,7 @@ We need to tell the web server (Nginx) to send traffic to your Node.js app.
         server_name _; 
 
         location /api/ {
-            proxy_pass http://localhost:5000/;
+            proxy_pass http://localhost:5000;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';
