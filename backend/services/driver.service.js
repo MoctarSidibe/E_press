@@ -86,16 +86,24 @@ class DriverService {
     async getDriverStats(driverId) {
         const result = await db.query(
             `SELECT 
-                COUNT(*) as total_deliveries,
-                COUNT(*) FILTER (WHERE status = 'delivered') as completed_deliveries,
-                COUNT(*) FILTER (WHERE status IN ('assigned', 'driver_en_route_pickup', 'picked_up', 'out_for_delivery')) as active_deliveries,
-                COALESCE(SUM(total) FILTER (WHERE status = 'delivered'), 0) as total_earnings
-             FROM orders
-             WHERE driver_id = $1`,
+                (SELECT COUNT(*) FROM orders WHERE pickup_driver_id = $1 AND status NOT IN ('pending', 'assigned', 'cancelled')) as pickups_completed,
+                (SELECT COUNT(*) FROM orders WHERE delivery_driver_id = $1 AND status = 'delivered') as deliveries_completed,
+                (SELECT COUNT(*) FROM orders WHERE (pickup_driver_id = $1 OR delivery_driver_id = $1) AND status IN ('assigned', 'driver_en_route_pickup', 'picked_up', 'out_for_delivery', 'ready')) as active_deliveries,
+                (SELECT COALESCE(SUM(total), 0) FROM orders WHERE delivery_driver_id = $1 AND status = 'delivered') as total_earnings
+             `,
             [driverId]
         );
 
-        return result.rows[0];
+        // Map old field names to new logic for compatibility if needed, but easier to just return new structure
+        // The frontend expects: total_deliveries, completed_deliveries (we'll map deliveries_completed), active_deliveries, total_earnings
+        const row = result.rows[0];
+        return {
+            total_deliveries: parseInt(row.pickups_completed) + parseInt(row.deliveries_completed), // Total tasks
+            completed_deliveries: parseInt(row.deliveries_completed),
+            completed_pickups: parseInt(row.pickups_completed),
+            active_deliveries: parseInt(row.active_deliveries),
+            total_earnings: parseFloat(row.total_earnings)
+        };
     }
 
     // Find nearest available driver

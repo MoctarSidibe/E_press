@@ -170,7 +170,7 @@ const RegisterScreen = ({ navigation }) => {
                             disabled={loading}
                         >
                             <Ionicons
-                                name="car"
+                                name="bicycle"
                                 size={24}
                                 color={formData.role === 'driver' ? '#fff' : theme.colors.text}
                             />
@@ -203,7 +203,7 @@ const RegisterScreen = ({ navigation }) => {
                                     formData.role === 'cleaner' && styles.roleButtonTextActive,
                                 ]}
                             >
-                                {t('auth.register.cleaner')}
+                                Cleaner
                             </Text>
                         </TouchableOpacity>
                     </View>

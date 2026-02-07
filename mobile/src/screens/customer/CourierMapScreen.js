@@ -8,7 +8,7 @@ import {
     Alert
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import MapView, { Marker, Circle } from 'react-native-maps';
+import OpenStreetMap from '../../components/map/OpenStreetMap';
 import * as Location from 'expo-location';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import socketService from '../../services/socket';
@@ -36,7 +36,14 @@ const CourierMapScreen = ({ navigation }) => {
             const { status } = await Location.requestForegroundPermissionsAsync();
 
             if (status !== 'granted') {
-                Alert.alert(t('common.permissionNeeded'), t('customer.tracking.locationPermission'));
+                Alert.alert(
+                    t('common.permissionNeeded'),
+                    t('customer.tracking.locationPermission'),
+                    [
+                        { text: t('common.ok') },
+                        { text: t('common.settings'), onPress: () => Linking.openSettings() }
+                    ]
+                );
                 setLoading(false);
                 return;
             }
@@ -145,57 +152,28 @@ const CourierMapScreen = ({ navigation }) => {
     return (
         <View style={styles.container}>
             {/* Map */}
-            <MapView
-                ref={mapRef}
+            {/* OpenStreetMap */}
+            <OpenStreetMap
                 style={styles.map}
                 initialRegion={location}
-                showsUserLocation
-                showsMyLocationButton={false}
-                onRegionChangeComplete={() => setFollowUser(false)}
-            >
-                {/* Service radius circle */}
-                <Circle
-                    center={{
-                        latitude: location.latitude,
-                        longitude: location.longitude
-                    }}
-                    radius={2000} // 2km radius
-                    fillColor="rgba(30, 136, 229, 0.1)"
-                    strokeColor="rgba(30, 136, 229, 0.5)"
-                    strokeWidth={2}
-                />
-
-                {/* Available couriers */}
-                {availableCouriers.map((courier) => {
-                    const distance = calculateDistance(
-                        location.latitude,
-                        location.longitude,
-                        courier.latitude,
-                        courier.longitude
-                    );
-
-                    return (
-                        <Marker
-                            key={courier.id}
-                            coordinate={{
-                                latitude: courier.latitude,
-                                longitude: courier.longitude
-                            }}
-                            title={courier.name}
-                            description={`${distance.toFixed(1)} km away • ${courier.currentOrders} active orders`}
-                        >
-                            <View style={styles.courierMarker}>
-                                <MaterialCommunityIcons
-                                    name="car"
-                                    size={24}
-                                    color="#fff"
-                                />
-                                {courier.isAvailable && <View style={styles.availableDot} />}
-                            </View>
-                        </Marker>
-                    );
-                })}
-            </MapView>
+                markers={availableCouriers.map(c => ({
+                    latitude: c.latitude,
+                    longitude: c.longitude,
+                    title: c.name,
+                    description: `${calculateDistance(location.latitude, location.longitude, c.latitude, c.longitude).toFixed(1)} km away`
+                }))}
+                circles={[{
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                    radius: 2000,
+                    fillColor: 'rgba(30, 136, 229, 0.1)',
+                    strokeColor: 'rgba(30, 136, 229, 0.5)'
+                }]}
+                onRegionChange={(region) => {
+                    setFollowUser(false);
+                    // location update logic if needed
+                }}
+            />
 
             {/* Header */}
             <View style={styles.header}>

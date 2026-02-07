@@ -270,6 +270,11 @@ class OrderService {
 
             await client.query('COMMIT');
 
+            // Emit socket event
+            if (global.emitOrderStatusUpdate) {
+                global.emitOrderStatusUpdate(orderId, status);
+            }
+
             return result.rows[0];
         } catch (error) {
             await client.query('ROLLBACK');
@@ -332,6 +337,15 @@ class OrderService {
             throw new Error('Order not found');
         }
 
+        // Emit update
+        if (global.emitOrderStatusUpdate) {
+            // Just emit status update to refresh order details
+            // We don't have new status here (it's mostly 'picked_up' handled separately)
+            // But confirming items usually happens with status change.
+            // If called alone, let's emit generic update
+            global.emitOrderStatusUpdate(orderId, result.rows[0].status);
+        }
+
         return result.rows[0];
     }
 
@@ -339,14 +353,21 @@ class OrderService {
     async updateReceptionCount(orderId, itemCount, userId) {
         const result = await db.query(
             `UPDATE orders 
-             SET updated_at = CURRENT_TIMESTAMP 
-             WHERE id = $1 
+             SET reception_item_count = $1,
+                 reception_cleaner_id = $2,
+                 updated_at = CURRENT_TIMESTAMP 
+             WHERE id = $3 
              RETURNING *`,
-            [orderId]
+            [itemCount, userId, orderId]
         );
 
         if (result.rows.length === 0) {
             throw new Error('Order not found');
+        }
+
+        // Emit update
+        if (global.emitOrderStatusUpdate) {
+            global.emitOrderStatusUpdate(orderId, result.rows[0].status);
         }
 
         return result.rows[0];
@@ -364,6 +385,11 @@ class OrderService {
 
         if (result.rows.length === 0) {
             throw new Error('Order not found');
+        }
+
+        // Emit update
+        if (global.emitOrderStatusUpdate) {
+            global.emitOrderStatusUpdate(orderId, result.rows[0].status);
         }
 
         return result.rows[0];
@@ -414,6 +440,11 @@ class OrderService {
             [orderId, driverId, 'Pickup driver assigned']
         );
 
+        // Emit socket event
+        if (global.emitOrderStatusUpdate) {
+            global.emitOrderStatusUpdate(orderId, 'assigned');
+        }
+
         return result.rows[0];
     }
 
@@ -440,6 +471,8 @@ class OrderService {
 
         // Update status to out_for_delivery
         const updatedOrder = await this.updateOrderStatus(orderId, 'out_for_delivery', driverId);
+
+        // updateOrderStatus already emits event, so we are good here.
 
         return updatedOrder;
     }
@@ -503,6 +536,55 @@ class OrderService {
             );
 
             await client.query('COMMIT');
+
+            // Emit socket event
+            if (global.emitOrderDeleted) {
+                global.emitOrderDeleted(orderId);
+            }
+
+            return result.rows[0];
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    // NEW: Admin Delete Order (Soft Delete)
+    async deleteOrder(orderId, userId) {
+        const client = await db.pool.connect();
+
+        try {
+            await client.query('BEGIN');
+
+            // Update status to cancelled (Soft delete)
+            const result = await client.query(
+                `UPDATE orders 
+                 SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP 
+                 WHERE id = $1 
+                 RETURNING *`,
+                [orderId]
+            );
+
+            if (result.rows.length === 0) {
+                throw new Error('Order not found');
+            }
+
+            // Add to history
+            await client.query(
+                `INSERT INTO order_status_history (order_id, status, changed_by, notes) 
+                 VALUES ($1, 'cancelled', $2, 'Order deleted by admin')`,
+                [orderId, userId]
+            );
+
+            await client.query('COMMIT');
+
+            // Emit socket event
+            if (global.emitOrderDeleted) {
+                global.emitOrderDeleted(orderId);
+            }
+
             return result.rows[0];
         } catch (error) {
             await client.query('ROLLBACK');

@@ -65,12 +65,26 @@ class QRService {
         try {
             const parsed = JSON.parse(qrData);
 
+            // Support both old format {id, num} and new format {orderId, orderNumber}
+            const orderId = parsed.orderId || parsed.id;
+            const orderNumber = parsed.orderNumber || parsed.num;
+
             // Validate required fields
-            if (!parsed.orderId || !parsed.orderNumber) {
+            if (!orderId || !orderNumber) {
                 throw new Error('Invalid QR code: missing order information');
             }
 
-            return parsed;
+            // Normalize to new format
+            return {
+                orderId,
+                orderNumber,
+                customerName: parsed.customerName || parsed.customer_name || '',
+                customerPhone: parsed.customerPhone || parsed.customer_phone || '',
+                itemCount: parsed.itemCount || parsed.item_count || 0,
+                createdAt: parsed.createdAt || parsed.created_at,
+                pickupAddress: parsed.pickupAddress || parsed.pickup_address || '',
+                deliveryAddress: parsed.deliveryAddress || parsed.delivery_address || ''
+            };
         } catch (error) {
             throw new Error(`QR code validation failed: ${error.message}`);
         }

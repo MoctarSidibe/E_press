@@ -27,7 +27,8 @@
     "continue": "Continuer",
     "customerSignature": "Signature du client",
     "signHere": "Signez ici",
-    "saveSignature": "Enregistrer la signature"
+    "saveSignature": "Enregistrer la signature",
+    "settings": "Paramètres"
   },
   "auth": {
     "login": {
@@ -440,6 +441,7 @@
     "selectLanguage": "Sélectionner la langue"
   },
   "nav": {
+    "home": "Accueil",
     "dashboard": "Tableau de bord",
     "orders": "Commandes",
     "users": "Utilisateurs",

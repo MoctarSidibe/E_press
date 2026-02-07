@@ -13,7 +13,7 @@ import {
     Dimensions,
     Animated
 } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import OpenStreetMap from '../../components/map/OpenStreetMap';
 import * as Location from 'expo-location';
 import { routingService } from '../../services/routing.service';
 import { useTranslation } from 'react-i18next';
@@ -360,39 +360,31 @@ const PickupOrderScreen = ({ navigation, route }) => {
     return (
         <View style={styles.container}>
             {/* Full Screen Map */}
-            <MapView
-                ref={mapRef}
+            {/* Full Screen Map */}
+            <OpenStreetMap
                 style={StyleSheet.absoluteFill}
-                provider={PROVIDER_DEFAULT}
                 initialRegion={{
                     latitude: coords?.latitude || 0,
                     longitude: coords?.longitude || 0,
                     latitudeDelta: 0.01,
                     longitudeDelta: 0.01,
                 }}
-                showsUserLocation={true}
-            >
-                {/* Route Line */}
-                {routeCoords.length > 0 && (
-                    <Polyline
-                        coordinates={routeCoords}
-                        strokeColor={theme.colors.primary}
-                        strokeWidth={4}
-                    />
-                )}
-
-                {coords && (
-                    <Marker
-                        coordinate={coords}
-                        title="Pickup Location"
-                        description={order.pickup_address}
-                    >
-                        <View style={styles.markerContainer}>
-                            <MaterialCommunityIcons name="package-up" size={24} color="#fff" />
-                        </View>
-                    </Marker>
-                )}
-            </MapView>
+                markers={coords ? [{
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                    title: "Pickup Location",
+                    description: order.pickup_address
+                }] : []}
+                polylines={routeCoords.length > 0 ? [{
+                    coordinates: routeCoords,
+                    strokeColor: theme.colors.primary,
+                    strokeWidth: 4
+                }] : []}
+                interaction="nav"
+                onRegionChange={(region) => {
+                    // Update user location tracking if needed
+                }}
+            />
 
             {/* Top Route Info Card */}
             {routeInfo && order?.status === 'driver_en_route_pickup' && (

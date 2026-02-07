@@ -54,4 +54,40 @@ router.get('/', authMiddleware, requireRole('admin'), async (req, res) => {
     }
 });
 
+// Accept order (driver) - simpler endpoint without notification requirement
+router.post('/orders/:orderId/accept', authMiddleware, requireRole('driver'), async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const orderService = require('../services/order.service');
+
+        // Get current order to determine if this is pickup or delivery
+        const order = await orderService.getOrderById(orderId);
+
+        if (!order) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+
+        // Determine if this is pickup or delivery assignment
+        const isPickup = !order.pickup_driver_id;
+
+        // Assign driver
+        if (isPickup) {
+            await orderService.assignPickupDriver(orderId, req.user.id);
+        } else {
+            await orderService.assignDeliveryDriver(orderId, req.user.id);
+        }
+
+        // Get updated order
+        const updatedOrder = await orderService.getOrderById(orderId);
+
+        res.json({
+            success: true,
+            order: updatedOrder,
+            message: 'Order accepted successfully'
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

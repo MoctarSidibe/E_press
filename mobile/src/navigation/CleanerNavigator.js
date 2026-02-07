@@ -8,6 +8,7 @@ import theme from '../theme/theme';
 // Cleaner screens
 import ReceptionScreen from '../screens/cleaner/ReceptionScreen';
 import ReadyForDeliveryScreen from '../screens/cleaner/ReadyForDeliveryScreen';
+import CleanerHistoryScreen from '../screens/cleaner/CleanerHistoryScreen';
 import QRScannerScreen from '../screens/driver/QRScannerScreen'; // Reuse driver QR scanner
 
 const Tab = createBottomTabNavigator();
@@ -35,6 +36,8 @@ const TabsNavigator = () => {
                         iconName = focused ? 'washing-machine' : 'washing-machine';
                     } else if (route.name === 'CleanerReady') {
                         iconName = focused ? 'truck-delivery' : 'truck-delivery-outline';
+                    } else if (route.name === 'History') {
+                        iconName = focused ? 'history' : 'history';
                     } else if (route.name === 'Profile') {
                         iconName = focused ? 'account' : 'account-outline';
                     }
@@ -66,6 +69,11 @@ const TabsNavigator = () => {
                 name="CleanerReady"
                 component={CleanerReadyScreen}
                 options={{ tabBarLabel: t('nav.ready') }}
+            />
+            <Tab.Screen
+                name="History"
+                component={CleanerHistoryScreen}
+                options={{ tabBarLabel: 'Historique' }}
             />
             <Tab.Screen
                 name="Profile"

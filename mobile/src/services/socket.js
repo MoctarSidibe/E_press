@@ -1,6 +1,12 @@
 import io from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Production server URL (matching the API configuration)
+const DEFAULT_SOCKET_URL = 'http://161.97.66.69';
+const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL
+    || process.env.EXPO_PUBLIC_API_URL?.replace('/api', '')
+    || DEFAULT_SOCKET_URL;
+
 class SocketService {
     constructor() {
         this.socket = null;
@@ -16,7 +22,8 @@ class SocketService {
             const user = JSON.parse(await AsyncStorage.getItem('user'));
 
             // Connect to backend Socket.IO server
-            this.socket = io('http://172.31.30.78:5000', {
+            console.log(`[Socket.IO] Connecting to ${SOCKET_URL}`);
+            this.socket = io(SOCKET_URL, {
                 transports: ['websocket'],
                 auth: {
                     token

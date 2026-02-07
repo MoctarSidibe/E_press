@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -10,6 +10,7 @@ import {
     ActivityIndicator
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ordersAPI } from '../../services/api';
 import socketService from '../../services/socket';
@@ -22,8 +23,15 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [markingReady, setMarkingReady] = useState({});
 
+    // Auto-refresh when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            console.log('📍 Ready For Delivery focused - refreshing');
+            loadOrders();
+        }, [])
+    );
+
     useEffect(() => {
-        loadOrders();
         setupSocketListeners();
 
         return () => {
@@ -62,7 +70,8 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
                         setMarkingReady(prev => ({ ...prev, [orderId]: true }));
 
                         try {
-                            await ordersAPI.updateStatus(orderId, 'ready', 'Cleaned and ready for delivery');
+                            // Call new cleaner-specific endpoint that notifies drivers
+                            await api.post(`/orders/cleaner/mark-ready/${orderId}`);
 
                             Alert.alert(t('common.success'), t('cleaner.delivery.markReadySuccess'));
                             loadOrders();
@@ -128,10 +137,10 @@ const ReadyForDeliveryScreen = ({ navigation }) => {
                     {isMarkingThisOrder ? (
                         <ActivityIndicator color="#fff" />
                     ) : (
-                        <>
-                            <MaterialCommunityIcons name="check-circle" size={24} color="#fff" />
+                        <View style={styles.buttonContent}>
+                            <MaterialCommunityIcons name="check-circle" size={20} color="#fff" />
                             <Text style={styles.readyButtonText}>{t('cleaner.delivery.markReady')}</Text>
-                        </>
+                        </View>
                     )}
                 </TouchableOpacity>
             </View>
@@ -294,15 +303,19 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.success,
         paddingVertical: theme.spacing.md,
         borderRadius: theme.borderRadius.lg,
-        gap: theme.spacing.sm,
+    },
+    buttonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     readyButtonDisabled: {
         opacity: 0.6,
     },
     readyButtonText: {
         color: '#fff',
-        fontSize: theme.fonts.sizes.md,
+        fontSize: theme.fonts.sizes.sm,
         fontWeight: theme.fonts.weights.semibold,
+        marginLeft: theme.spacing.sm,
     },
     emptyState: {
         flex: 1,

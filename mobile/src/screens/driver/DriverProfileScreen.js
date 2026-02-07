@@ -40,37 +40,7 @@ const DriverProfileScreen = () => {
                 </View>
             </View>
 
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>{t('driver.profile.account')}</Text>
 
-                <TouchableOpacity style={styles.menuItem}>
-                    <View style={styles.menuIcon}>
-                        <MaterialCommunityIcons name="account-cog" size={24} color={theme.colors.primary} />
-                    </View>
-                    <Text style={styles.menuText}>{t('customer.profile.personalInfo')}</Text>
-                    <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.textTertiary} />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem}>
-                    <View style={styles.menuIcon}>
-                        <MaterialCommunityIcons name="bank" size={24} color={theme.colors.primary} />
-                    </View>
-                    <Text style={styles.menuText}>{t('driver.profile.bankDetails')}</Text>
-                    <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.textTertiary} />
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>{t('driver.profile.preferences')}</Text>
-
-                <TouchableOpacity style={styles.menuItem}>
-                    <View style={styles.menuIcon}>
-                        <MaterialCommunityIcons name="bell-outline" size={24} color={theme.colors.primary} />
-                    </View>
-                    <Text style={styles.menuText}>{t('driver.profile.notifications')}</Text>
-                    <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.textTertiary} />
-                </TouchableOpacity>
-            </View>
 
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                 <MaterialCommunityIcons name="logout" size={20} color={theme.colors.error} />

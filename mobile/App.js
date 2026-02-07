@@ -8,6 +8,7 @@ import { LanguageProvider } from './src/context/LanguageContext';
 import initI18n from './src/i18n/i18n';
 import { useTranslation } from 'react-i18next';
 import theme from './src/theme/theme';
+import { categoriesAPI } from './src/services/api';
 
 // Navigators
 import AuthNavigator from './src/navigation/AuthNavigator';
@@ -15,6 +16,7 @@ import CustomerNavigator from './src/navigation/CustomerNavigator';
 import DriverNavigator from './src/navigation/DriverNavigator';
 import AdminNavigator from './src/navigation/AdminNavigator';
 import CleanerNavigator from './src/navigation/CleanerNavigator';
+import NotificationController from './src/components/NotificationController';
 
 // Error logging helper
 const logError = (context, error) => {
@@ -41,11 +43,11 @@ function AppNavigator() {
 
   try {
     switch (user.role) {
-      case 'customer': return <CustomerNavigator />;
-      case 'driver': return <DriverNavigator />;
-      case 'admin': return <AdminNavigator />;
-      case 'cleaner': return <CleanerNavigator />;
-      default: return <CustomerNavigator />;
+      case 'customer': return <><CustomerNavigator /><NotificationController /></>;
+      case 'driver': return <><DriverNavigator /><NotificationController /></>;
+      case 'admin': return <><AdminNavigator /><NotificationController /></>;
+      case 'cleaner': return <><CleanerNavigator /><NotificationController /></>;
+      default: return <><CustomerNavigator /><NotificationController /></>;
     }
   } catch (error) {
     logError('RoleNav', error);
@@ -59,6 +61,7 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       await initI18n();
+      await categoriesAPI.clearCache();
       setI18nReady(true);
     };
     init();

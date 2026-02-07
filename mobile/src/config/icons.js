@@ -34,9 +34,6 @@ export const CLOTHING_ICONS = {
     'sock': 'foot-print',
     'socks': 'foot-print',
     'tie': 'tie',
-    'scarf': 'scarf',
-    'glove': 'glove',
-    'gloves': 'glove',
     'hat': 'hat-fedora',
     'cap': 'hat-fedora',
 
@@ -56,9 +53,9 @@ export const CLOTHING_ICONS = {
     'tablecloth': 'table-furniture',
     'napkin': 'square-outline',
 
-    // Swimwear
-    'swimsuit': 'swim',
-    'swim': 'swim',
+    // Uniforms & Workwear
+    'uniform': 'account-tie',
+    'security-vest': 'shield-check',
 
     // Fallback
     'default': 'hanger'

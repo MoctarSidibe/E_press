@@ -21,6 +21,7 @@ import theme from '../../theme/theme';
 
 const HomeScreen = ({ navigation }) => {
     const { user } = useAuth();
+    const { t } = useTranslation();
     const [categories, setCategories] = useState([]);
     const [groupedCategories, setGroupedCategories] = useState({});
     const [recentOrders, setRecentOrders] = useState([]);
@@ -61,13 +62,19 @@ const HomeScreen = ({ navigation }) => {
             setCategories(response.data);
             setUsingCache(response.fromCache || false);
 
-            // Group categories professionally
+            // Group categories professionally (use fixed keys, translate when displaying)
+            const everydayKey = t('customer.home.groups.everyday');
+            const outerwearKey = t('customer.home.groups.outerwear');
+            const professionalKey = t('customer.home.groups.professional');
+            const householdKey = t('customer.home.groups.household');
+            const childrenKey = t('customer.home.groups.children');
+
             const groups = {
-                [t('customer.home.groups.everyday')]: [],
-                [t('customer.home.groups.outerwear')]: [],
-                [t('customer.home.groups.professional')]: [],
-                [t('customer.home.groups.household')]: [],
-                [t('customer.home.groups.children')]: []
+                [everydayKey]: [],
+                [outerwearKey]: [],
+                [professionalKey]: [],
+                [householdKey]: [],
+                [childrenKey]: []
             };
 
             response.data.forEach(cat => {
@@ -76,30 +83,30 @@ const HomeScreen = ({ navigation }) => {
                 // Everyday Wear (shirts, pants, dresses, etc.)
                 if (['shirt', 't-shirt', 'polo', 'pants', 'trouser', 'dress', 'skirt',
                     'shorts', 'underwear', 'panties', 'sportswear', 'sport'].some(item => name.includes(item))) {
-                    groups['Everyday Wear'].push(cat);
+                    groups[everydayKey].push(cat);
                 }
-                // Outerwear & Formal (jackets, suits, sweaters)
+                // Professional & Uniforms (security vest, uniform, tie, etc.) — check before outerwear
+                else if (['uniform', 'officer', 'officier', 'coverall', 'combinaison',
+                    'tie', 'cravate', 'security'].some(item => name.includes(item))) {
+                    groups[professionalKey].push(cat);
+                }
+                // Outerwear & Formal (jackets, suits, sweaters — but not security vest)
                 else if (['jacket', 'coat', 'manteau', 'leather', 'sweater', 'pull',
                     'sweatshirt', 'suit', 'costume', 'vest', 'gilet'].some(item => name.includes(item))) {
-                    groups['Outerwear & Formal'].push(cat);
-                }
-                // Professional & Uniforms (work clothing)
-                else if (['uniform', 'officer', 'officier', 'coverall', 'combinaison',
-                    'tie', 'cravate'].some(item => name.includes(item))) {
-                    groups['Professional & Uniforms'].push(cat);
+                    groups[outerwearKey].push(cat);
                 }
                 // Household Linens (bedding, towels, curtains)
                 else if (['sheet', 'drap', 'towel', 'serviette', 'curtain', 'rideau',
-                    'blanket', 'pillow', 'oreiller', 'duvet', 'tablecloth', 'napkin'].some(item => name.includes(item))) {
-                    groups['Household Linens'].push(cat);
+                    'blanket', 'pillow', 'oreiller', 'tablecloth', 'napkin'].some(item => name.includes(item))) {
+                    groups[householdKey].push(cat);
                 }
                 // Children & Baby
                 else if (['baby', 'bébé', 'child', 'enfant'].some(item => name.includes(item))) {
-                    groups['Children & Baby'].push(cat);
+                    groups[childrenKey].push(cat);
                 }
                 // Fallback to Everyday Wear for uncategorized items
                 else {
-                    groups['Everyday Wear'].push(cat);
+                    groups[everydayKey].push(cat);
                 }
             });
             setGroupedCategories(groups);
@@ -156,7 +163,7 @@ const HomeScreen = ({ navigation }) => {
         selectedItems.forEach(item => {
             const category = categories.find(c => c.id === item.categoryId);
             if (category) {
-                total += parseFloat(category.base_price) * item.quantity;
+                total += parseFloat(category.base_price) * item.quantity * 100;
             }
         });
         return total;
@@ -302,7 +309,7 @@ const HomeScreen = ({ navigation }) => {
                                                                 } else if (normalizedName.includes('bed') || normalizedName.includes('drap')) { // Bedsheet
                                                                     gifSource = require('../../../assets/images/bed.gif');
                                                                 } else if (normalizedName.includes('combinaison') || normalizedName.includes('coverall')) {
-                                                                    gifSource = require('../../../assets/images/coverall (1).gif');
+                                                                    gifSource = require('../../../assets/images/coverall.gif');
                                                                 } else if (normalizedName.includes('curtain') || normalizedName.includes('rideau')) {
                                                                     gifSource = require('../../../assets/images/curtain.gif');
                                                                 } else if (normalizedName.includes('sweatshirt')) {
@@ -371,7 +378,7 @@ const HomeScreen = ({ navigation }) => {
                                                             })()}
                                                         </Text>
                                                         <Text style={styles.categoryPrice}>
-                                                            ${parseFloat(category.base_price).toFixed(2)}
+                                                            {(parseFloat(category.base_price) * 100).toFixed(0)} Fcfa
                                                         </Text>
                                                         {isSelected && (
                                                             <View style={styles.checkmarkBadge}>
@@ -453,13 +460,13 @@ const HomeScreen = ({ navigation }) => {
                 >
                     <View style={styles.floatingCardHeader}>
                         <Text style={styles.floatingCardTitle}>
-                            {t('customer.home.itemsSelected', { 
-                                count: selectedItems.length, 
+                            {t('customer.home.itemsSelected', {
+                                count: selectedItems.length,
                                 item: selectedItems.length === 1 ? t('customer.home.item') : t('customer.home.items')
                             })}
                         </Text>
                         <Text style={styles.floatingCardTotal}>
-                            ${calculateEstimatedTotal().toFixed(2)}
+                            {calculateEstimatedTotal().toFixed(0)} Fcfa
                         </Text>
                     </View>
 
@@ -478,7 +485,7 @@ const HomeScreen = ({ navigation }) => {
                                             {category.name}
                                         </Text>
                                         <Text style={styles.floatingItemPrice}>
-                                            ${parseFloat(category.base_price).toFixed(2)}
+                                            {(parseFloat(category.base_price) * 100).toFixed(0)} Fcfa
                                         </Text>
                                     </View>
                                     <View style={styles.floatingItemControls}>

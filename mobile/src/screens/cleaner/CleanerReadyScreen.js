@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -8,6 +8,7 @@ import {
     ActivityIndicator
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ordersAPI } from '../../services/api';
 import socketService from '../../services/socket';
@@ -19,8 +20,15 @@ const CleanerReadyScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Auto-refresh when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            console.log('📍 Cleaner Ready focused - refreshing');
+            loadOrders();
+        }, [])
+    );
+
     useEffect(() => {
-        loadOrders();
         setupSocketListeners();
 
         return () => {
@@ -62,7 +70,7 @@ const CleanerReadyScreen = ({ navigation }) => {
 
                     <View style={styles.statusBadge}>
                         <MaterialCommunityIcons name="truck-delivery" size={14} color="#fff" />
-                        <Text style={styles.statusBadgeText}>WAITING FOR DRIVER</Text>
+                        <Text style={styles.statusBadgeText}>{t('cleaner.ready.waitingDriver')}</Text>
                     </View>
                 </View>
 
@@ -74,13 +82,15 @@ const CleanerReadyScreen = ({ navigation }) => {
 
                     <View style={styles.detailRow}>
                         <MaterialCommunityIcons name="hanger" size={18} color={theme.colors.textSecondary} />
-                        <Text style={styles.detailText}>{item.reception_item_count || item.pickup_item_count || item.confirmed_item_count} items</Text>
+                        <Text style={styles.detailText}>
+                            {item.reception_item_count || item.pickup_item_count || item.confirmed_item_count} {t('order.details.items')}
+                        </Text>
                     </View>
 
                     <View style={styles.detailRow}>
                         <MaterialCommunityIcons name="clock" size={18} color={theme.colors.textSecondary} />
                         <Text style={styles.detailText}>
-                            Ready since: {new Date(item.updated_at).toLocaleTimeString()}
+                            {t('cleaner.ready.readySince')}: {new Date(item.updated_at).toLocaleTimeString()}
                         </Text>
                     </View>
                 </View>
@@ -101,7 +111,7 @@ const CleanerReadyScreen = ({ navigation }) => {
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <MaterialCommunityIcons name="truck-delivery-outline" size={32} color={theme.colors.text} />
+                <MaterialCommunityIcons name="truck-delivery-outline" size={32} color={theme.colors.success} />
                 <View style={styles.headerTextContainer}>
                     <Text style={styles.headerTitle}>{t('cleaner.ready.title')}</Text>
                     <Text style={styles.headerSubtitle}>{t('cleaner.ready.subtitle', { count: orders.length })}</Text>
@@ -212,7 +222,7 @@ const styles = StyleSheet.create({
     statusBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: theme.colors.info,
+        backgroundColor: theme.colors.success,
         paddingHorizontal: theme.spacing.sm,
         paddingVertical: theme.spacing.xs,
         borderRadius: theme.borderRadius.sm,

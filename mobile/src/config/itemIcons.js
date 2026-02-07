@@ -44,6 +44,8 @@ export const getItemGifIcon = (categoryName) => {
         return require('../../assets/images/sweater.gif');
     } else if (normalizedName.includes('towel') || normalizedName.includes('serviette')) {
         return require('../../assets/images/towels.gif');
+    } else if (normalizedName.includes('security') && normalizedName.includes('vest')) {
+        return require('../../assets/images/work.gif');
     } else if (normalizedName.includes('vest') || normalizedName.includes('gilet')) {
         return require('../../assets/images/vest.gif');
     } else if (normalizedName.includes('hoodie')) {

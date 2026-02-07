@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ordersAPI } from '../../services/api';
 import theme from '../../theme/theme';
+import socketService from '../../services/socket';
 
 const ReceptionScreen = ({ navigation, route }) => {
     const { t } = useTranslation();
@@ -158,6 +159,26 @@ const ReceptionScreen = ({ navigation, route }) => {
                                     </View>
                                 )}
                             </View>
+
+                            {/* Detailed Items List */}
+                            <View style={styles.itemsListContainer}>
+                                <Text style={styles.sectionTitle}>Items to Verify</Text>
+                                {scannedOrder.items && scannedOrder.items.length > 0 ? (
+                                    scannedOrder.items.map((item, index) => (
+                                        <View key={index} style={styles.itemRow}>
+                                            <View style={styles.itemQtyBadge}>
+                                                <Text style={styles.itemQtyText}>{item.quantity}</Text>
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.itemName}>{item.category_name || item.name}</Text>
+                                                {item.notes && <Text style={styles.itemNotes}>{item.notes}</Text>}
+                                            </View>
+                                        </View>
+                                    ))
+                                ) : (
+                                    <Text style={styles.noItemsText}>No detailed items available</Text>
+                                )}
+                            </View>
                         </View>
 
                         {/* Count Verification */}
@@ -195,9 +216,9 @@ const ReceptionScreen = ({ navigation, route }) => {
                                 <View style={styles.warningBox}>
                                     <MaterialCommunityIcons name="alert" size={20} color={theme.colors.warning} />
                                     <Text style={styles.warningText}>
-                                        {t('cleaner.reception.countMismatch', { 
+                                        {t('cleaner.reception.countMismatch', {
                                             expected: scannedOrder.pickup_item_count || scannedOrder.confirmed_item_count,
-                                            received: receptionCount 
+                                            received: receptionCount
                                         })}
                                     </Text>
                                 </View>
@@ -437,6 +458,7 @@ const styles = StyleSheet.create({
     actionButtons: {
         flexDirection: 'row',
         gap: theme.spacing.md,
+        marginTop: 20
     },
     cancelButton: {
         flex: 1,
@@ -468,6 +490,48 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: theme.fonts.sizes.md,
         fontWeight: theme.fonts.weights.semibold,
+    },
+    itemsListContainer: {
+        marginTop: theme.spacing.lg,
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.border,
+        paddingTop: theme.spacing.md,
+    },
+    itemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: theme.spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.border + '40',
+    },
+    itemQtyBadge: {
+        backgroundColor: theme.colors.primary + '20',
+        borderRadius: theme.borderRadius.sm,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 2,
+        marginRight: theme.spacing.md,
+    },
+    itemQtyText: {
+        color: theme.colors.primary,
+        fontWeight: 'bold',
+        fontSize: theme.fonts.sizes.md,
+    },
+    itemName: {
+        fontSize: theme.fonts.sizes.md,
+        color: theme.colors.text,
+        fontWeight: '500',
+    },
+    itemNotes: {
+        fontSize: theme.fonts.sizes.sm,
+        color: theme.colors.textSecondary,
+        fontStyle: 'italic',
+        marginTop: 2,
+    },
+    noItemsText: {
+        textAlign: 'center',
+        color: theme.colors.textTertiary,
+        fontStyle: 'italic',
+        padding: theme.spacing.md,
     },
 });
 

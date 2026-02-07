@@ -7,12 +7,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import theme from '../theme/theme';
 
 // Driver screens
-import AvailableOrdersScreen from '../screens/driver/AvailableOrdersScreen';
-import MyOrdersScreen from '../screens/driver/MyOrdersScreen';
+import DriverDashboardScreen from '../screens/driver/DriverDashboardScreen';
+import DriverOrdersScreen from '../screens/driver/DriverOrdersScreen';
+import DriverOrderDetailsScreen from '../screens/driver/DriverOrderDetailsScreen';
+import ScanQRScreen from '../screens/driver/ScanQRScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
-import PickupOrderScreen from '../screens/driver/PickupOrderScreen';
-import DeliveryOrderScreen from '../screens/driver/DeliveryOrderScreen';
-import QRScannerScreen from '../screens/driver/QRScannerScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -27,9 +26,9 @@ const DriverTabs = () => {
                 tabBarIcon: ({ focused, color, size }) => {
                     let iconName;
 
-                    if (route.name === 'Available') {
-                        iconName = focused ? 'map' : 'map-outline';
-                    } else if (route.name === 'MyOrders') {
+                    if (route.name === 'Dashboard') {
+                        iconName = focused ? 'home' : 'home-outline';
+                    } else if (route.name === 'DriverOrders') {
                         iconName = focused ? 'list' : 'list-outline';
                     } else if (route.name === 'Profile') {
                         iconName = focused ? 'person' : 'person-outline';
@@ -49,16 +48,20 @@ const DriverTabs = () => {
             })}
         >
             <Tab.Screen
-                name="Available"
-                component={AvailableOrdersScreen}
-                options={{ tabBarLabel: t('nav.available') }}
+                name="Dashboard"
+                component={DriverDashboardScreen}
+                options={{ tabBarLabel: 'Dashboard' }}
             />
             <Tab.Screen
-                name="MyOrders"
-                component={MyOrdersScreen}
-                options={{ tabBarLabel: t('nav.myOrders') }}
+                name="DriverOrders"
+                component={DriverOrdersScreen}
+                options={{ tabBarLabel: 'My Orders' }}
             />
-            <Tab.Screen name="Profile" component={DriverProfileScreen} options={{ tabBarLabel: t('nav.profile') }} />
+            <Tab.Screen
+                name="Profile"
+                component={DriverProfileScreen}
+                options={{ tabBarLabel: t('nav.profile') }}
+            />
         </Tab.Navigator>
     );
 };
@@ -67,9 +70,8 @@ const DriverNavigator = () => {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="DriverTabs" component={DriverTabs} />
-            <Stack.Screen name="PickupOrder" component={PickupOrderScreen} />
-            <Stack.Screen name="DeliveryOrder" component={DeliveryOrderScreen} />
-            <Stack.Screen name="QRScanner" component={QRScannerScreen} />
+            <Stack.Screen name="DriverOrderDetails" component={DriverOrderDetailsScreen} />
+            <Stack.Screen name="ScanQR" component={ScanQRScreen} />
         </Stack.Navigator>
     );
 };

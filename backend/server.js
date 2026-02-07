@@ -183,6 +183,28 @@ global.emitOrderStatusUpdate = (orderId, status) => {
     });
 };
 
+global.emitOrderDeleted = (orderId) => {
+    // Notify specific order room (customer, assigned driver)
+    io.to(`order:${orderId}`).emit('order:deleted', {
+        orderId,
+        status: 'cancelled',
+        timestamp: new Date()
+    });
+
+    // Notify all drivers (to remove from available list)
+    io.to('role:driver').emit('order:deleted', {
+        orderId,
+        status: 'cancelled',
+        timestamp: new Date()
+    });
+
+    // Notify admin
+    io.to('role:admin').emit('order:deleted', {
+        orderId,
+        timestamp: new Date()
+    });
+};
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('Error:', err);

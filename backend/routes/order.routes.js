@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../database/db');
 const orderService = require('../services/order.service');
 const { authMiddleware, requireRole } = require('../middleware/auth.middleware');
 
@@ -24,16 +25,95 @@ router.get('/my-orders', authMiddleware, async (req, res) => {
     }
 });
 
-// Get orders in facility (cleaner)
+// Get orders in facility (cleaner) - ONLY orders this cleaner has handled
 router.get('/facility', authMiddleware, requireRole('cleaner'), async (req, res) => {
     try {
         const { status } = req.query;
-        // Use getAllOrders admin logic but filtered by status
-        const filters = {};
-        if (status) filters.status = status;
+        const cleanerId = req.user.id;
 
-        const orders = await orderService.getAllOrders(filters);
-        res.json(orders);
+        // Get orders that THIS specific cleaner has received at reception
+        const result = await db.pool.query(
+            `SELECT o.*, 
+                    u.full_name as customer_name,
+                    u.phone as customer_phone,
+                    pu.full_name as pickup_driver_name,
+                    du.full_name as delivery_driver_name,
+                    pl.label as pickup_label,
+                    pl.address as pickup_address,
+                    dl.label as delivery_label,
+                    dl.address as delivery_address
+             FROM orders o
+             LEFT JOIN users u ON o.customer_id = u.id
+             LEFT JOIN users pu ON o.pickup_driver_id = pu.id
+             LEFT JOIN users du ON o.delivery_driver_id = du.id
+             LEFT JOIN locations pl ON o.pickup_location_id = pl.id
+             LEFT JOIN locations dl ON o.delivery_location_id = dl.id
+             WHERE o.reception_cleaner_id = $1
+             ${status ? 'AND o.status = $2' : ''}
+             ORDER BY o.updated_at DESC`,
+            status ? [cleanerId, status] : [cleanerId]
+        );
+
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get cleaner's order history (all processed orders)
+router.get('/cleaner/history', authMiddleware, requireRole('cleaner'), async (req, res) => {
+    try {
+        const cleanerId = req.user.id;
+
+        // Get ALL orders that this cleaner has processed, ordered by most recent
+        const result = await db.pool.query(
+            `SELECT o.*, 
+                    u.full_name as customer_name,
+                    u.phone as customer_phone,
+                    pu.full_name as pickup_driver_name,
+                    du.full_name as delivery_driver_name,
+                    pl.label as pickup_label,
+                    pl.address as pickup_address,
+                    dl.label as delivery_label,
+                    dl.address as delivery_address
+             FROM orders o
+             LEFT JOIN users u ON o.customer_id = u.id
+             LEFT JOIN users pu ON o.pickup_driver_id = pu.id
+             LEFT JOIN users du ON o.delivery_driver_id = du.id
+             LEFT JOIN locations pl ON o.pickup_location_id = pl.id
+             LEFT JOIN locations dl ON o.delivery_location_id = dl.id
+             WHERE o.reception_cleaner_id = $1
+             ORDER BY o.updated_at DESC
+             LIMIT 100`,
+            [cleanerId]
+        );
+
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Mark order as ready for delivery (cleaner) - with driver notification
+router.post('/cleaner/mark-ready/:orderId', authMiddleware, requireRole('cleaner'), async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const cleanerId = req.user.id;
+        const notificationService = require('../services/notification.service');
+
+        // Update order status to ready
+        await orderService.updateOrderStatus(orderId, 'ready', cleanerId, 'Cleaned and ready for delivery');
+
+        // Broadcast to all delivery drivers
+        await notificationService.notifyAvailableDeliveryCouriers(orderId);
+
+        // Emit socket event for real-time updates
+        if (global.emitOrderStatusUpdate) {
+            global.emitOrderStatusUpdate(orderId, 'ready');
+        }
+
+        const order = await orderService.getOrderById(orderId);
+        res.json({ success: true, order });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

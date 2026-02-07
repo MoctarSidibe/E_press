@@ -15,7 +15,8 @@
       "autoIncrement": true,
       "env": {
         "NODE_ENV": "production",
-        "EXPO_PUBLIC_API_URL": "http://161.97.66.69/api"
+        "EXPO_PUBLIC_API_URL": "http://161.97.66.69/api",
+        "EXPO_PUBLIC_SOCKET_URL": "http://161.97.66.69"
       },
       "android": {
         "buildType": "apk"

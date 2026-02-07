@@ -99,8 +99,13 @@ class NotificationService {
      */
     async getAvailableOrders(courierId, type) {
         try {
-            const result = await db.query(
-                `SELECT DISTINCT o.*, 
+            let query = '';
+
+            // Query orders directly - simpler and more robust than relying on notifications
+            if (type === 'pickup_available') {
+                // Pending orders with no pickup driver
+                query = `
+                    SELECT DISTINCT o.*, 
                         u.full_name as customer_name, 
                         u.phone as customer_phone,
                         pl.address as pickup_address, 
@@ -109,34 +114,47 @@ class NotificationService {
                         dl.address as delivery_address,
                         dl.latitude as delivery_lat,
                         dl.longitude as delivery_lng,
-                        cn.id as notification_id,
-                        cn.sent_at,
-                        cn.is_accepted
-                 FROM orders o
-                 INNER JOIN courier_notifications cn ON cn.order_id = o.id
-                 INNER JOIN users u ON u.id = o.customer_id
-                 LEFT JOIN locations pl ON pl.id = o.pickup_location_id
-                 LEFT JOIN locations dl ON dl.id = o.delivery_location_id
-                 WHERE cn.sent_to = $1 
-                   AND cn.notification_type = $2
-                   AND cn.is_accepted = false
-                   AND o.status != 'cancelled'
-                 ORDER BY cn.sent_at DESC`,
-                [courierId, type]
-            );
-
-
-
-
-
-            console.log(`[getAvailableOrders] Query: courierId=${courierId}, type=${type}`);
-            console.log(`[getAvailableOrders] Found: ${result.rows.length} orders`);
-            if (result.rows.length > 0) {
-                console.log(`[getAvailableOrders] Sample:`, {
-                    order_number: result.rows[0].order_number,
-                    notification_id: result.rows[0].notification_id
-                });
+                        NULL as notification_id
+                    FROM orders o
+                    INNER JOIN users u ON u.id = o.customer_id
+                    LEFT JOIN locations pl ON pl.id = o.pickup_location_id
+                    LEFT JOIN locations dl ON dl.id = o.delivery_location_id
+                    WHERE o.status = 'pending' 
+                      AND o.pickup_driver_id IS NULL
+                      AND o.status != 'cancelled'
+                    ORDER BY o.created_at DESC
+                `;
+            } else if (type === 'delivery_available') {
+                // Ready orders with no delivery driver
+                query = `
+                    SELECT DISTINCT o.*, 
+                        u.full_name as customer_name, 
+                        u.phone as customer_phone,
+                        pl.address as pickup_address, 
+                        pl.latitude as pickup_lat, 
+                        pl.longitude as pickup_lng,
+                        dl.address as delivery_address,
+                        dl.latitude as delivery_lat,
+                        dl.longitude as delivery_lng,
+                        NULL as notification_id
+                    FROM orders o
+                    INNER JOIN users u ON u.id = o.customer_id
+                    LEFT JOIN locations pl ON pl.id = o.pickup_location_id
+                    LEFT JOIN locations dl ON dl.id = o.delivery_location_id
+                    WHERE o.status = 'ready' 
+                      AND o.delivery_driver_id IS NULL
+                      AND o.status != 'cancelled'
+                    ORDER BY o.updated_at DESC
+                `;
             }
+
+            if (!query) return [];
+
+            const result = await db.query(query);
+
+            console.log(`[getAvailableOrders] Querying ${type}`);
+            console.log(`[getAvailableOrders] Found: ${result.rows.length} orders`);
+
             return result.rows;
         } catch (error) {
             console.error(`[getAvailableOrders] Error:`, error.message);

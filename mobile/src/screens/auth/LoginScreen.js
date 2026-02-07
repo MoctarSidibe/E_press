@@ -171,18 +171,7 @@ const LoginScreen = ({ navigation }) => {
                     </TouchableOpacity>
                 </Animated.View>
 
-                {/* Demo credentials hint */}
-                <Animated.View
-                    style={[
-                        styles.demoHint,
-                        {
-                            opacity: formOpacity,
-                            transform: [{ translateY: formTranslateY }],
-                        },
-                    ]}
-                >
-                    <Text style={styles.demoText}>{t('auth.login.demoCredentials')}</Text>
-                </Animated.View>
+
             </View>
         </KeyboardAvoidingView>
     );

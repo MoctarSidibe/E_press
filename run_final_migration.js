@@ -1,0 +1,1 @@
+"const db = require('./database/db'); const fs = require('fs'); const path = require('path'); require('dotenv').config(); (async()=>{ try { const sql = fs.readFileSync('database/migrations/005_add_cleaner_tracking.sql', 'utf8'); await db.query(sql); console.log('? Migration success'); } catch(e){ console.error(e); } process.exit(0); })();" 

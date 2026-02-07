@@ -1,6 +1,41 @@
 # Network Error Troubleshooting Guide
 
-## Issue: "Network Error" during login
+## Issue: "Network Error" on Mobile APK (Production)
+
+When the installed APK shows "Network error" during login/register:
+
+### 1. Test from your phone's browser
+Open Chrome on your phone and visit:
+```
+http://161.97.66.69/api
+```
+- **If it works**: The server is reachable. Rebuild the APK (we added network security config).
+- **If it fails**: The server may not be reachable from your network (firewall, mobile carrier, etc.).
+
+### 2. Check server firewall
+On your server, ensure port 80 is open:
+```bash
+ufw status
+# If port 80 is not allowed:
+ufw allow 80
+ufw allow 443
+ufw reload
+```
+
+### 3. Rebuild the APK
+We added a network security config for Android. Rebuild:
+```bash
+cd mobile
+eas build -p android --profile production
+```
+
+### 4. Try different network
+- If on WiFi: Try mobile data (or vice versa)
+- Some corporate/school networks block external servers
+
+---
+
+## Issue: "Network Error" during login (Development)
 
 ### Quick Checks
 

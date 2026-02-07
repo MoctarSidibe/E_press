@@ -1,13 +1,11 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Android Emulator/Device needs your machine's local IP, not "localhost"
-// TIP: Run 'ipconfig' (Windows) or 'ifconfig' (Mac/Linux) to get your current IP
-const DEFAULT_DEV_API_URL = 'http://172.31.30.207:5000/api';
-const DEFAULT_PROD_API_URL = 'http://161.97.66.69/api';
-const API_URL = __DEV__
-    ? (process.env.EXPO_PUBLIC_DEV_API_URL || DEFAULT_DEV_API_URL)
-    : (process.env.EXPO_PUBLIC_API_URL || DEFAULT_PROD_API_URL);
+// Production server (use for both dev and prod when testing)
+const DEFAULT_API_URL = 'http://161.97.66.69/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL
+    || process.env.EXPO_PUBLIC_DEV_API_URL
+    || DEFAULT_API_URL;
 
 // Create axios instance
 const api = axios.create({
@@ -61,7 +59,7 @@ api.interceptors.response.use(
             // Error setting up the request
             console.error(`[API] Request setup error:`, error.message);
         }
-        
+
         if (error.response?.status === 401) {
             // Token expired or invalid
             await AsyncStorage.removeItem('auth_token'); // Changed from 'token' to 'auth_token'
@@ -175,6 +173,7 @@ export const locationsAPI = {
 // Driver API
 export const driverAPI = {
     getOrders: (status = null) => api.get('/driver/orders', { params: { status } }),
+    getStats: () => api.get('/driver/stats'),
     updateLocation: (data) => api.post('/driver/location', data),
     acceptOrder: (orderId) => api.post(`/driver/orders/${orderId}/accept`),
     updateOrderStatus: (orderId, status) => api.patch(`/driver/orders/${orderId}/status`, { status }),

@@ -10,13 +10,14 @@ import {
     Alert,
     ActivityIndicator,
     Modal,
+    Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { WebView } from 'react-native-webview';
-import MapView, { Marker } from 'react-native-maps';
+import OpenStreetMap from '../../components/map/OpenStreetMap';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
@@ -154,9 +155,9 @@ const NewOrderScreen = ({ navigation, route }) => {
             };
             categoriesRes.data.forEach(cat => {
                 const name = cat.name.toLowerCase();
-                if (name.includes('sheet') || name.includes('towel') || name.includes('blanket') || name.includes('pillow') || name.includes('duvet') || name.includes('curtain')) {
+                if (name.includes('sheet') || name.includes('towel') || name.includes('blanket') || name.includes('pillow') || name.includes('curtain')) {
                     groups['Household'].push(cat);
-                } else if (name.includes('tie') || name.includes('scarf') || name.includes('glove')) {
+                } else if (name.includes('tie') || name.includes('security')) {
                     groups['Accessories'].push(cat);
                 } else {
                     groups['Clothing'].push(cat);
@@ -176,8 +177,12 @@ const NewOrderScreen = ({ navigation, route }) => {
                 }));
             }
         } catch (error) {
-            Alert.alert(t('common.error'), t('customer.newOrder.failedLoadData'));
-            console.error(error);
+            const status = error.response?.status;
+            const msg = status === 401
+                ? t('errors.unauthorized')
+                : t('customer.newOrder.failedLoadData');
+            Alert.alert(t('common.error'), msg);
+            console.error('[NewOrderScreen] loadData error:', error?.response?.data || error);
         } finally {
             setLoading(false);
         }
@@ -542,7 +547,10 @@ const NewOrderScreen = ({ navigation, route }) => {
                 Alert.alert(
                     t('common.permissionNeeded'),
                     t('customer.newOrder.permissionNeededMessage'),
-                    [{ text: t('common.ok') }]
+                    [
+                        { text: t('common.ok') },
+                        { text: t('common.settings'), onPress: () => Linking.openSettings() }
+                    ]
                 );
             }
         } catch (error) {
@@ -671,32 +679,19 @@ const NewOrderScreen = ({ navigation, route }) => {
                     <View style={styles.realMapContainer}>
                         {mapRegion && markerCoordinate ? (
                             <>
-                                <MapView
+                                <OpenStreetMap
                                     style={styles.realMap}
                                     initialRegion={mapRegion}
-                                    region={mapRegion}
-                                    showsUserLocation={true}
-                                    showsMyLocationButton={false}
-                                    showsCompass={true}
-                                    zoomEnabled={true}
-                                    scrollEnabled={true}
-                                    pitchEnabled={false}
-                                    rotateEnabled={false}
-                                    loadingEnabled={true}
-                                    loadingIndicatorColor={theme.colors.primary}
-                                    onPress={handleMapPress}
-                                >
-                                    {markerCoordinate && markerCoordinate.latitude && markerCoordinate.longitude && (
-                                        <Marker
-                                            coordinate={markerCoordinate}
-                                            title={t('customer.newOrder.deliveryLocation')}
-                                            description={t('customer.newOrder.dragToAdjust')}
-                                            pinColor={theme.colors.primary}
-                                            draggable={true}
-                                            onDragEnd={handleMarkerDragEnd}
-                                        />
-                                    )}
-                                </MapView>
+                                    interaction="picker"
+                                    onRegionChange={(region) => {
+                                        // Update marker coordinate to center of map
+                                        setMarkerCoordinate({
+                                            latitude: region.latitude,
+                                            longitude: region.longitude
+                                        });
+                                        // Also can update mapRegion if needed, but usually redundant for picking
+                                    }}
+                                />
                                 <View style={styles.accuracyBadge}>
                                     <MaterialCommunityIcons name="crosshairs-gps" size={12} color={theme.colors.success} />
                                     <Text style={styles.accuracyText}>GPS Active</Text>
@@ -853,7 +848,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                                 <View key={item.categoryId} style={styles.selectedItemChip}>
                                     <Text style={styles.selectedItemName}>{category.name}</Text>
                                     <View style={styles.selectedItemBadge}>
-                                        <Text style={styles.selectedItemQuantity}>Ã—{item.quantity}</Text>
+                                        <Text style={styles.selectedItemQuantity}>×{item.quantity}</Text>
                                     </View>
                                     <TouchableOpacity
                                         onPress={() => toggleItem(item.categoryId)}
@@ -908,7 +903,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                                                         gifSource = require('../../../assets/images/pants.gif');
                                                     } else if (normalizedName.includes('dress')) {
                                                         gifSource = require('../../../assets/images/dress (1).gif');
-                                                    } else if (normalizedName.includes('baby') || normalizedName.includes('bÃ©bÃ©')) {
+                                                    } else if (normalizedName.includes('baby') || normalizedName.includes('bébé')) {
                                                         gifSource = require('../../../assets/images/baby-clothes.gif');
                                                     } else if (normalizedName.includes('bed') || normalizedName.includes('drap')) { // Bedsheet
                                                         gifSource = require('../../../assets/images/bed.gif');
@@ -948,7 +943,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                                                         gifSource = require('../../../assets/images/customs-officer.gif');
                                                     } else if (normalizedName.includes('suit') || normalizedName.includes('costume')) {
                                                         gifSource = require('../../../assets/images/suit.gif');
-                                                    } else if (normalizedName.includes('underwear') || normalizedName.includes('sous-vÃªtement')) {
+                                                    } else if (normalizedName.includes('underwear') || normalizedName.includes('sous-v\u00EAtement')) {
                                                         gifSource = require('../../../assets/images/bikini.gif');
                                                     } else if (normalizedName.includes('sportswear') || normalizedName.includes('sport')) {
                                                         gifSource = require('../../../assets/images/basketball-equipment.gif');
@@ -980,8 +975,8 @@ const NewOrderScreen = ({ navigation, route }) => {
                                                     {category.name}
                                                 </Text>
                                                 <Text style={styles.categoryPrice}>
-                                                    ${parseFloat(category.base_price).toFixed(2)}
-                                                    {orderData.isExpress && ` â†’ $${parseFloat(category.express_price).toFixed(2)}`}
+                                                    {(parseFloat(category.base_price) * 100).toFixed(0)} Fcfa
+                                                    {orderData.isExpress && ` → ${(parseFloat(category.express_price) * 100).toFixed(0)} Fcfa`}
                                                 </Text>
                                             </View>
                                         </View>
@@ -1003,14 +998,14 @@ const NewOrderScreen = ({ navigation, route }) => {
                                                     onPress={() => updateItemQuantity(category.id, Math.max(1, selectedItem.quantity - 1))}
                                                     style={styles.quantityButton}
                                                 >
-                                                    <MaterialCommunityIcons name="minus" size={20} color={theme.colors.primary} />
+                                                    <MaterialCommunityIcons name="minus" size={18} color={theme.colors.primary} />
                                                 </TouchableOpacity>
                                                 <Text style={styles.quantityText}>{selectedItem.quantity}</Text>
                                                 <TouchableOpacity
                                                     onPress={() => updateItemQuantity(category.id, selectedItem.quantity + 1)}
                                                     style={styles.quantityButton}
                                                 >
-                                                    <MaterialCommunityIcons name="plus" size={20} color={theme.colors.primary} />
+                                                    <MaterialCommunityIcons name="plus" size={18} color={theme.colors.primary} />
                                                 </TouchableOpacity>
                                             </View>
                                         )}
@@ -1362,7 +1357,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                                     {category.name} x{item.quantity}
                                 </Text>
                                 <Text style={styles.summaryItemPrice}>
-                                    ${((orderData.isExpress ? category.express_price : category.base_price) * item.quantity).toFixed(2)}
+                                    {(((orderData.isExpress ? category.express_price : category.base_price) * item.quantity) * 100).toFixed(0)} Fcfa
                                 </Text>
                             </View>
                         );
@@ -1372,31 +1367,31 @@ const NewOrderScreen = ({ navigation, route }) => {
 
                     <View style={styles.summaryItem}>
                         <Text style={styles.summaryItemText}>Subtotal</Text>
-                        <Text style={styles.summaryItemPrice}>${pricing.subtotal.toFixed(2)}</Text>
+                        <Text style={styles.summaryItemPrice}>{(pricing.subtotal * 100).toFixed(0)} Fcfa</Text>
                     </View>
 
                     <View style={styles.summaryItem}>
                         <Text style={styles.summaryItemText}>Delivery Fee</Text>
-                        <Text style={styles.summaryItemPrice}>${pricing.deliveryFee.toFixed(2)}</Text>
+                        <Text style={styles.summaryItemPrice}>{(pricing.deliveryFee * 100).toFixed(0)} Fcfa</Text>
                     </View>
 
                     {orderData.isExpress && (
                         <View style={styles.summaryItem}>
                             <Text style={styles.summaryItemText}>Express Fee</Text>
-                            <Text style={styles.summaryItemPrice}>${pricing.expressFee.toFixed(2)}</Text>
+                            <Text style={styles.summaryItemPrice}>{(pricing.expressFee * 100).toFixed(0)} Fcfa</Text>
                         </View>
                     )}
 
                     <View style={styles.summaryItem}>
                         <Text style={styles.summaryItemText}>Tax (10%)</Text>
-                        <Text style={styles.summaryItemPrice}>${pricing.tax.toFixed(2)}</Text>
+                        <Text style={styles.summaryItemPrice}>{(pricing.tax * 100).toFixed(0)} Fcfa</Text>
                     </View>
 
                     <View style={[styles.divider, { marginVertical: theme.spacing.sm }]} />
 
                     <View style={styles.summaryItem}>
                         <Text style={styles.summaryTotal}>Total</Text>
-                        <Text style={styles.summaryTotalPrice}>${pricing.total.toFixed(2)}</Text>
+                        <Text style={styles.summaryTotalPrice}>{(pricing.total * 100).toFixed(0)} Fcfa</Text>
                     </View>
                 </View>
 
@@ -1421,7 +1416,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                             styles.paymentText,
                             orderData.paymentMethod === 'cash' && styles.textSelected,
                         ]}>
-                            Cash on Delivery
+                            Cash on Pickup
                         </Text>
                         {orderData.paymentMethod === 'cash' && (
                             <MaterialCommunityIcons name="check-circle" size={24} color={theme.colors.primary} />
@@ -1439,7 +1434,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                             Airtel Money
                         </Text>
                         <View style={styles.comingSoonBadge}>
-                            <Text style={styles.comingSoonText}>BientÃ´t Disponible</Text>
+                            <Text style={styles.comingSoonText}>Bientôt Disponible</Text>
                         </View>
                     </View>
 
@@ -1454,7 +1449,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                             Moov Money
                         </Text>
                         <View style={styles.comingSoonBadge}>
-                            <Text style={styles.comingSoonText}>BientÃ´t Disponible</Text>
+                            <Text style={styles.comingSoonText}>Bientôt Disponible</Text>
                         </View>
                     </View>
                 </View>
@@ -1642,6 +1637,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
+        marginRight: theme.spacing.sm, // Add space between info and quantity controls
     },
     categoryIconContainer: {
         width: 50,
@@ -1651,6 +1647,8 @@ const styles = StyleSheet.create({
     },
     categoryText: {
         marginLeft: theme.spacing.md,
+        flex: 1,
+        flexShrink: 1, // Allow text to shrink to prevent overlap
     },
     categoryName: {
         fontSize: theme.fonts.sizes.md,
@@ -1661,6 +1659,7 @@ const styles = StyleSheet.create({
         fontSize: theme.fonts.sizes.sm,
         color: theme.colors.textSecondary,
         marginTop: theme.spacing.xs,
+        flexWrap: 'wrap', // Allow text to wrap if needed
     },
     textSelected: {
         color: theme.colors.primary,
@@ -1668,21 +1667,21 @@ const styles = StyleSheet.create({
     quantityControl: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing.md,
+        gap: theme.spacing.sm, // Reduced from md for more compact layout
     },
     quantityButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 28, // Reduced from 32
+        height: 28, // Reduced from 32
+        borderRadius: 14, // Half of width/height
         backgroundColor: theme.colors.primary + '20',
         justifyContent: 'center',
         alignItems: 'center',
     },
     quantityText: {
-        fontSize: theme.fonts.sizes.lg,
+        fontSize: theme.fonts.sizes.md, // Reduced from lg
         fontWeight: theme.fonts.weights.bold,
         color: theme.colors.primary,
-        minWidth: 24,
+        minWidth: 20, // Reduced from 24
         textAlign: 'center',
     },
     expressToggle: {

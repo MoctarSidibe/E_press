@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware, requireRole } = require('../middleware/auth.middleware');
 const db = require('../database/db');
+const orderService = require('../services/order.service');
 
 // Get system statistics (admin)
 router.get('/stats', authMiddleware, requireRole(['admin', 'cleaner']), async (req, res) => {
@@ -258,6 +259,19 @@ router.delete('/categories/:id', authMiddleware, requireRole('admin'), async (re
         await db.query('DELETE FROM clothing_categories WHERE id = $1', [id]);
 
         res.json({ message: 'Category deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+} catch (error) {
+    res.status(500).json({ error: error.message });
+}
+});
+
+// Delete Order (Soft Delete) - Admin Only
+router.delete('/orders/:id', authMiddleware, requireRole('admin'), async (req, res) => {
+    try {
+        const order = await orderService.deleteOrder(req.params.id, req.user.id);
+        res.json({ message: 'Order deleted/cancelled successfully', order });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

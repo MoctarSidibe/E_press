@@ -2,6 +2,7 @@ import { useState } from 'react';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { Alert, Platform } from 'react-native';
 
 export const useReceiptPDF = () => {
@@ -32,7 +33,7 @@ export const useReceiptPDF = () => {
                     ${item.category_name || item.name || 'Item'}
                     ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
                 </td>
-                <td class="item-col price">$${(parseFloat(item.price_per_item || 0) * item.quantity).toFixed(2)}</td>
+                <td class="item-col price">${(parseFloat(item.price_per_item || 0) * item.quantity).toFixed(0)} Fcfa</td>
             </tr>
         `).join('');
 
@@ -133,25 +134,25 @@ export const useReceiptPDF = () => {
                     <div class="totals-section">
                         <div class="total-row">
                             <span>Subtotal</span>
-                            <span>$${subtotal}</span>
+                            <span>${parseFloat(subtotal).toFixed(0)} Fcfa</span>
                         </div>
                         <div class="total-row">
                             <span>Delivery Fee</span>
-                            <span>$${deliveryFee}</span>
+                            <span>${parseFloat(deliveryFee).toFixed(0)} Fcfa</span>
                         </div>
                         ${parseFloat(expressFee) > 0 ? `
                         <div class="total-row">
                             <span>Express Fee</span>
-                            <span>$${expressFee}</span>
+                            <span>${parseFloat(expressFee).toFixed(0)} Fcfa</span>
                         </div>
                         ` : ''}
                         <div class="total-row">
                             <span>Tax (10%)</span>
-                            <span>$${tax}</span>
+                            <span>${parseFloat(tax).toFixed(0)} Fcfa</span>
                         </div>
                         <div class="total-row final">
                             <span>Total Amount</span>
-                            <span>$${total}</span>
+                            <span>${parseFloat(total).toFixed(0)} Fcfa</span>
                         </div>
                     </div>
 
@@ -178,53 +179,13 @@ export const useReceiptPDF = () => {
                 base64: false
             });
 
-            // 5. Save/Share Logic
-            if (Platform.OS === 'android') {
-                // Check if SAF is available
-                if (FileSystem.StorageAccessFramework) {
-                    try {
-                        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            // 3. Share the PDF file
+            const fileName = `E-Press_Receipt_${order.order_number}.pdf`;
 
-                        if (permissions.granted) {
-                            const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-                            const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                                permissions.directoryUri,
-                                `E-Press_Receipt_${order.order_number}`,
-                                'application/pdf'
-                            );
-
-                            await FileSystem.writeAsStringAsync(newFileUri, base64, { encoding: FileSystem.EncodingType.Base64 });
-                            Alert.alert('Download Complete', 'Receipt saved to your selected folder.');
-                        } else {
-                            // User cancelled permission - offer share as backup
-                            await Sharing.shareAsync(uri, {
-                                mimeType: 'application/pdf',
-                                dialogTitle: 'Share Receipt',
-                                UTI: 'com.adobe.pdf'
-                            });
-                        }
-                    } catch (safError) {
-                        console.error('SAF Error:', safError);
-                        // Fallback
-                        await Sharing.shareAsync(uri, {
-                            mimeType: 'application/pdf',
-                            dialogTitle: 'Share Receipt',
-                            UTI: 'com.adobe.pdf'
-                        });
-                    }
-                } else {
-                    // SAF not available (older Android)
-                    await Sharing.shareAsync(uri, {
-                        mimeType: 'application/pdf',
-                        dialogTitle: 'Share Receipt',
-                        UTI: 'com.adobe.pdf'
-                    });
-                }
-            } else {
-                // iOS - Share Sheet is the standard "Save to Files" way
+            if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(uri, {
                     mimeType: 'application/pdf',
-                    dialogTitle: 'Save to Files',
+                    dialogTitle: 'Save Receipt to Downloads',
                     UTI: 'com.adobe.pdf'
                 });
             }

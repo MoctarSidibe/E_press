@@ -22,7 +22,7 @@ This guide shows you how to put your Admin Website online.
     *   Create a new file inside `admin-panel` named `.env.production`.
     *   Add this line:
         ```env
-        VITE_API_URL=http://161.97.66.69/api
+        VITE_API_URL=http://161.97.66.69/api 
         ```
 5.  **Build the project:**
     ```powershell

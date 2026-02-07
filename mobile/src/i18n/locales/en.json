@@ -27,7 +27,8 @@
     "continue": "Continue",
     "customerSignature": "Customer Signature",
     "signHere": "Sign here",
-    "saveSignature": "Save Signature"
+    "saveSignature": "Save Signature",
+    "settings": "Settings"
   },
   "auth": {
     "login": {
@@ -445,6 +446,7 @@
     "selectLanguage": "Select Language"
   },
   "nav": {
+    "home": "Home",
     "dashboard": "Dashboard",
     "orders": "Orders",
     "users": "Users",

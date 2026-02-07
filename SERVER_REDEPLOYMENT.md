@@ -165,16 +165,15 @@ server {
     listen 80;
     server_name _;
 
-    # Health check (before location / so it's not caught by admin)
+    # Health check
     location = /health {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
+        proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
     }
 
-    # Backend API (NO trailing slash on proxy_pass - important!)
+    # Backend API
     location /api/ {
-        proxy_pass http://localhost:5000;
+        proxy_pass http://127.0.0.1:5000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -182,7 +181,13 @@ server {
         proxy_cache_bypass $http_upgrade;
     }
 
-    # Admin Panel (must be last)
+    # Landing page
+    location /landing/ {
+        alias /var/www/epress-landing/;
+        index index.html;
+    }
+
+    # Admin Panel (root)
     location / {
         root /var/www/epress-admin;
         index index.html;
@@ -200,9 +205,9 @@ systemctl restart nginx
 
 ---
 
-## Step 8: Deploy Admin Panel
+## Step 8: Deploy Admin Panel & Landing Page
 
-**Option A – Build on server:**
+**Admin Panel – Build on server:**
 ```bash
 cd ~/E_press/admin-panel
 echo "VITE_API_URL=http://161.97.66.69/api" > .env.production
@@ -212,10 +217,16 @@ mkdir -p /var/www/epress-admin
 cp -r dist/* /var/www/epress-admin
 ```
 
-**Option B – Build locally and upload:**
+**Landing Page – Copy static files:**
+```bash
+mkdir -p /var/www/epress-landing
+cp ~/E_press/landing/index.html ~/E_press/landing/styles.css /var/www/epress-landing/
+```
+
+**Alternative – Build admin locally and upload via FileZilla:**
 1. On your PC: `cd admin-panel`, create `.env.production` with `VITE_API_URL=http://161.97.66.69/api`
 2. Run `npm run build`
-3. Use FileZilla (SFTP) to upload contents of `dist/` to `/var/www/epress-admin/`
+3. Upload `dist/*` to `/var/www/epress-admin/` and `landing/*` to `/var/www/epress-landing/`
 
 ---
 
@@ -226,6 +237,7 @@ cp -r dist/* /var/www/epress-admin
 | http://161.97.66.69/health | `{"status":"ok",...}` |
 | http://161.97.66.69/api | JSON with endpoints |
 | http://161.97.66.69/ | Admin login page |
+| http://161.97.66.69/landing/ | Landing page with app download |
 | Login: admin@epress.com / Admin@123 | Admin dashboard |
 
 **Test from PowerShell (local):**

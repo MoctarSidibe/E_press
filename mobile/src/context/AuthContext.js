@@ -117,6 +117,8 @@ export const AuthProvider = ({ children }) => {
                 errorMessage = error.response.data.error;
             } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
                 errorMessage = error.response.data.errors.map(err => err.msg || err.message || err).join(', ');
+            } else if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network')) {
+                errorMessage = 'Network error. Please check your internet connection.';
             } else if (error.message) {
                 errorMessage = error.message;
             }
