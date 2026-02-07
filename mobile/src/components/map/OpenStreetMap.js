@@ -6,6 +6,7 @@ const OpenStreetMap = ({
     initialRegion,
     markers = [],
     circles = [],
+    polylines = [],
     onRegionChange,
     onMapPress,
     interaction = 'static', // 'static', 'picker', 'nav'
@@ -40,8 +41,8 @@ const OpenStreetMap = ({
     // Support explicit polylines prop OR fallback to connecting markers if nav mode
     const polylinesJs = [];
 
-    if (props.polylines && props.polylines.length > 0) {
-        props.polylines.forEach(p => {
+    if (polylines && polylines.length > 0) {
+        polylines.forEach(p => {
             const latlngs = p.coordinates.map(c => `[${c.latitude}, ${c.longitude}]`).join(',');
             polylinesJs.push(`
                 var line = L.polyline([${latlngs}], {color: '${p.strokeColor || 'blue'}', weight: ${p.strokeWidth || 3}}).addTo(map);
@@ -86,7 +87,7 @@ const OpenStreetMap = ({
         <script>
             var map = L.map('map', { zoomControl: false }).setView([${lat}, ${lng}], ${zoom});
             
-            L.tileLayer('https://take-delivery.com/{z}/{x}/{y}.png', {
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
 
