@@ -41,7 +41,7 @@ const Dashboard = () => {
     if (loading) {
         return (
             <Box sx={{ p: 3 }}>
-                <Typography variant="h4" gutterBottom>Loading Dashboard...</Typography>
+                <Typography variant="h4" gutterBottom>Chargement...</Typography>
                 <LinearProgress sx={{ mt: 2 }} />
             </Box>
         );
@@ -54,20 +54,20 @@ const Dashboard = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
                     <Sparkle size={32} color="#00D4D4" weight="duotone" />
                     <Typography variant="h3" sx={{ fontWeight: 700, color: '#1A1F36' }}>
-                        Dashboard
+                        Tableau de bord
                     </Typography>
                 </Box>
                 <Typography variant="body1" color="text.secondary">
-                    Welcome back! Here's what's happening with your laundry service today.
+                    Bienvenue ! Voici l'état de votre service de pressing aujourd'hui.
                 </Typography>
             </Box>
 
             {/* User Statistics */}
-            <SectionHeader title="Team Overview" />
+            <SectionHeader title="Équipe" />
             <Grid container spacing={3} sx={{ mb: 4 }}>
                 <Grid item xs={12} sm={6} md={3}>
                     <MetricCard
-                        title="Total Users"
+                        title="Utilisateurs total"
                         value={stats?.total_users || 0}
                         icon={<Users size={32} weight="duotone" />}
                         gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
@@ -75,7 +75,7 @@ const Dashboard = () => {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                     <MetricCard
-                        title="Customers"
+                        title="Clients"
                         value={stats?.total_customers || 0}
                         icon={<UserCircle size={32} weight="duotone" />}
                         gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
@@ -83,7 +83,7 @@ const Dashboard = () => {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                     <MetricCard
-                        title="Drivers"
+                        title="Livreurs"
                         value={stats?.total_drivers || 0}
                         icon={<Truck size={32} weight="duotone" />}
                         gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
@@ -91,7 +91,7 @@ const Dashboard = () => {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                     <MetricCard
-                        title="Cleaners"
+                        title="Agents pressing"
                         value={stats?.total_cleaners || 0}
                         icon={<WashingMachine size={32} weight="duotone" />}
                         gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
@@ -102,22 +102,22 @@ const Dashboard = () => {
             {/* Revenue & Orders */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
                 <Grid item xs={12} md={8}>
-                    <SectionHeader title="Operations" />
+                    <SectionHeader title="Opérations" />
                     <Grid container spacing={3}>
                         <Grid item xs={12} sm={6}>
                             <LargeStatCard
-                                title="Total Orders"
+                                title="Commandes totales"
                                 value={stats?.total_orders || 0}
-                                subtitle={`${stats?.active_orders || 0} active`}
+                                subtitle={`${stats?.active_orders || 0} en cours`}
                                 icon={<ShoppingBag size={40} weight="duotone" />}
                                 color="#667eea"
                             />
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <LargeStatCard
-                                title="Completed"
+                                title="Livrées"
                                 value={stats?.orders_delivered || 0}
-                                subtitle={`${stats?.orders_cancelled || 0} cancelled`}
+                                subtitle={`${stats?.orders_cancelled || 0} annulées`}
                                 icon={<CheckCircle size={40} weight="duotone" />}
                                 color="#43e97b"
                             />
@@ -126,7 +126,7 @@ const Dashboard = () => {
                 </Grid>
 
                 <Grid item xs={12} md={4}>
-                    <SectionHeader title="Revenue" />
+                    <SectionHeader title="Revenus" />
                     <RevenueCard
                         totalRevenue={stats?.total_revenue || 0}
                         pendingRevenue={stats?.pending_revenue || 0}
@@ -135,30 +135,30 @@ const Dashboard = () => {
             </Grid>
 
             {/* Order Status Breakdown */}
-            <SectionHeader title="Order Pipeline" />
+            <SectionHeader title="Pipeline des commandes" />
             <Grid container spacing={2} sx={{ mb: 4 }}>
                 <Grid item xs={6} sm={4} md={2}>
-                    <PipelineCard title="Pending" value={stats?.orders_pending || 0} color="#FFA726" />
+                    <PipelineCard title="En attente" value={stats?.orders_pending || 0} color="#FFA726" />
                 </Grid>
                 <Grid item xs={6} sm={4} md={2}>
-                    <PipelineCard title="Assigned" value={stats?.orders_assigned || 0} color="#00D4D4" />
+                    <PipelineCard title="Assigné" value={stats?.orders_assigned || 0} color="#00D4D4" />
                 </Grid>
                 <Grid item xs={6} sm={4} md={2}>
-                    <PipelineCard title="Picked Up" value={stats?.orders_picked_up || 0} color="#9C27B0" />
+                    <PipelineCard title="Collecté" value={stats?.orders_picked_up || 0} color="#9C27B0" />
                 </Grid>
                 <Grid item xs={6} sm={4} md={2}>
-                    <PipelineCard title="In Facility" value={stats?.orders_in_facility || 0} color="#00B4D8" />
+                    <PipelineCard title="En traitement" value={stats?.orders_in_facility || 0} color="#00B4D8" />
                 </Grid>
                 <Grid item xs={6} sm={4} md={2}>
-                    <PipelineCard title="Ready" value={stats?.orders_ready || 0} color="#4CAF50" />
+                    <PipelineCard title="Prêt" value={stats?.orders_ready || 0} color="#4CAF50" />
                 </Grid>
                 <Grid item xs={6} sm={4} md={2}>
-                    <PipelineCard title="Out for Delivery" value={stats?.orders_out_for_delivery || 0} color="#FF9800" />
+                    <PipelineCard title="En livraison" value={stats?.orders_out_for_delivery || 0} color="#FF9800" />
                 </Grid>
             </Grid>
 
             {/* Recent Activities */}
-            <SectionHeader title="Recent Activity" />
+            <SectionHeader title="Activité récente" />
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #E0E7F1' }}>
                 {stats?.recent_activities?.length > 0 ? (
                     stats.recent_activities.map((activity, index) => (
@@ -206,7 +206,7 @@ const Dashboard = () => {
                                     </Box>
                                 </Box>
                                 <Typography variant="h6" fontWeight="bold" sx={{ color: '#00D4D4' }}>
-                                    ${parseFloat(activity.total || 0).toFixed(2)}
+                                    {(parseFloat(activity.total || 0) * 100).toFixed(0)} Fcfa
                                 </Typography>
                             </Box>
                             {index < stats.recent_activities.length - 1 && <Divider />}
@@ -216,7 +216,7 @@ const Dashboard = () => {
                     <Box sx={{ textAlign: 'center', py: 6 }}>
                         <Package size={48} color="#ccc" />
                         <Typography color="text.secondary" sx={{ mt: 2 }}>
-                            No recent activities
+                            Aucune activité récente
                         </Typography>
                     </Box>
                 )}
@@ -318,13 +318,13 @@ const RevenueCard = ({ totalRevenue, pendingRevenue }) => (
             <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                     <CurrencyDollar size={24} weight="duotone" />
-                    <Typography variant="h6" fontWeight={600}>Revenue</Typography>
+                    <Typography variant="h6" fontWeight={600}>Revenus</Typography>
                 </Box>
                 <Typography variant="h3" fontWeight="bold" sx={{ mb: 0.5 }}>
-                    ${parseFloat(totalRevenue).toFixed(2)}
+                    {(parseFloat(totalRevenue) * 100).toFixed(0)} Fcfa
                 </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    Total Earned
+                    Total encaissé
                 </Typography>
             </Box>
 
@@ -334,10 +334,10 @@ const RevenueCard = ({ totalRevenue, pendingRevenue }) => (
                     <TrendUp size={20} weight="duotone" />
                     <Box>
                         <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', lineHeight: 1 }}>
-                            Pending Revenue
+                            Revenus en attente
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
-                            ${parseFloat(pendingRevenue).toFixed(2)}
+                            {(parseFloat(pendingRevenue) * 100).toFixed(0)} Fcfa
                         </Typography>
                     </Box>
                 </Box>
