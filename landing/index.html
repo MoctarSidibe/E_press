@@ -1,164 +1,447 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>E-Press - Votre Pressing Nouvelle Génération</title>
-  <meta name="description"
-    content="E-Press simplifie votre vie avec un service de pressing à la demande. Ramassage et livraison à domicile, suivi en temps réel.">
-  <link rel="icon" type="image/png" href="assets/favicon.png">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Ionicons for icons -->
-  <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-  <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#07101f">
+    <meta name="description" content="E-Press — Pressing premium à Libreville. Collecte, lavage et livraison en un clic. Téléchargez l'app pour clients ou pour livreurs / laveries partenaires.">
+    <meta property="og:title" content="E-Press — Pressing premium en ligne">
+    <meta property="og:description" content="Téléchargez E-Press (client) ou E-Press Pro (livreur / laverie). Collecte et livraison à Libreville.">
+    <meta property="og:image" content="https://www.epress.ga/assets/app-screen.jpg">
+    <title>E-Press — Pressing premium à Libreville</title>
+    <link rel="icon" type="image/png" href="/assets/favicon.png">
+    <style>
+        :root {
+            --bg:        #07101f;
+            --surface:   #0F3460;
+            --teal:      #00D4D4;
+            --gold:      #FFD700;
+            --orange:    #f59e0b;
+            --green:     #34d399;
+            --text:      #ffffff;
+            --text-dim:  rgba(255,255,255,0.65);
+            --text-dim2: rgba(255,255,255,0.4);
+            --border:    rgba(0,212,212,0.18);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            background: linear-gradient(180deg, var(--bg) 0%, #050a14 100%);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.6;
+        }
+        a { color: var(--teal); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+        nav {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 24px;
+            max-width: 1100px; margin: 0 auto;
+        }
+        .brand {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 22px; font-weight: 900; letter-spacing: 0.3px;
+        }
+        .brand-badge {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: var(--teal);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .brand-badge svg { width: 22px; height: 22px; }
+        .nav-links { display: flex; gap: 22px; font-size: 14px; align-items: center; }
+        .nav-links a { color: var(--text-dim); font-weight: 600; }
+        .nav-links a:hover { color: var(--teal); text-decoration: none; }
+        .nav-cta {
+            background: var(--teal); color: #07101f !important;
+            padding: 9px 16px; border-radius: 999px;
+            font-weight: 800; font-size: 13px;
+        }
+        @media (max-width: 600px) { .nav-links a:not(.nav-cta) { display: none; } }
+
+        header.hero {
+            text-align: center;
+            padding: 48px 24px 32px;
+        }
+        .hero-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(0,212,212,0.10);
+            border: 1px solid var(--border);
+            padding: 6px 14px; border-radius: 999px;
+            font-size: 11px; font-weight: 800;
+            color: var(--teal); letter-spacing: 1px;
+            margin-bottom: 22px;
+        }
+        h1 {
+            font-size: clamp(32px, 6vw, 56px);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 18px;
+        }
+        h1 .accent { color: var(--teal); }
+        .hero-sub {
+            font-size: clamp(15px, 2.4vw, 19px);
+            color: var(--text-dim);
+            max-width: 640px; margin: 0 auto 32px;
+        }
+        .hero-cta { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+        .btn-primary, .btn-ghost {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 14px 26px;
+            border-radius: 14px;
+            font-size: 15px; font-weight: 800; letter-spacing: 0.3px;
+            transition: transform 0.2s, filter 0.2s;
+        }
+        .btn-primary { background: var(--teal); color: #07101f; }
+        .btn-primary:hover { filter: brightness(1.08); transform: scale(1.02); text-decoration: none; }
+        .btn-ghost {
+            background: rgba(255,255,255,0.06);
+            border: 1.5px solid rgba(255,255,255,0.18);
+            color: var(--text);
+        }
+        .btn-ghost:hover { border-color: var(--teal); color: var(--teal); text-decoration: none; }
+
+        section.apps { padding: 32px 0 64px; }
+        .apps h2, .how h2, .why h2 {
+            text-align: center;
+            font-size: clamp(22px, 4vw, 32px);
+            font-weight: 900; margin-bottom: 8px;
+        }
+        .apps .lead, .how .lead, .why .lead {
+            text-align: center; color: var(--text-dim);
+            margin-bottom: 36px;
+        }
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+            gap: 24px;
+        }
+        .app-card {
+            background: var(--surface);
+            border-radius: 22px;
+            padding: 30px 26px;
+            border: 1.5px solid var(--border);
+            display: flex; flex-direction: column;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            position: relative; overflow: hidden;
+        }
+        .app-card:hover { transform: translateY(-4px); box-shadow: 0 20px 50px rgba(0,212,212,0.18); }
+        .app-card.pro { border-color: rgba(245,158,11,0.32); }
+        .app-card.pro:hover { box-shadow: 0 20px 50px rgba(245,158,11,0.18); }
+        .app-icon-wrap {
+            width: 76px; height: 76px; border-radius: 20px;
+            background: rgba(0,212,212,0.14);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 20px;
+        }
+        .app-card.pro .app-icon-wrap { background: rgba(245,158,11,0.16); }
+        .app-icon-wrap svg { width: 40px; height: 40px; }
+        .app-card h3 {
+            font-size: 24px; font-weight: 900; margin-bottom: 4px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .pro-tag {
+            font-size: 11px; font-weight: 800;
+            background: var(--orange); color: #1a1100;
+            padding: 3px 8px; border-radius: 6px;
+            letter-spacing: 0.5px;
+        }
+        .app-card .for {
+            font-size: 12px; color: var(--text-dim2);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 14px; font-weight: 700;
+        }
+        .app-card p { color: var(--text-dim); font-size: 14px; margin-bottom: 22px; }
+        ul.feats { list-style: none; margin: 0 0 24px; display: flex; flex-direction: column; gap: 10px; }
+        ul.feats li {
+            font-size: 13.5px; color: var(--text-dim);
+            display: flex; align-items: flex-start; gap: 9px;
+        }
+        ul.feats li svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; color: var(--teal); }
+        .app-card.pro ul.feats li svg { color: var(--orange); }
+        .download-btn {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            background: var(--teal); color: #07101f !important;
+            padding: 14px 22px;
+            border-radius: 14px;
+            font-size: 15px; font-weight: 800;
+            text-decoration: none;
+            margin-top: auto;
+            transition: filter 0.2s, transform 0.2s;
+        }
+        .download-btn:hover { filter: brightness(1.08); transform: scale(1.02); text-decoration: none; }
+        .download-btn svg { width: 18px; height: 18px; }
+        .app-card.pro .download-btn { background: var(--orange); }
+        .app-meta {
+            display: flex; justify-content: space-between;
+            margin-top: 12px;
+            font-size: 11px; color: var(--text-dim2);
+        }
+
+        section.how {
+            padding: 64px 0 48px;
+            background: rgba(255,255,255,0.02);
+        }
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 22px;
+        }
+        .step-card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .step-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; border-radius: 50%;
+            background: var(--teal); color: #07101f;
+            font-weight: 900; font-size: 16px;
+            margin-bottom: 14px;
+        }
+        .step-card h4 { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+        .step-card p { font-size: 13px; color: var(--text-dim); }
+
+        section.why { padding: 64px 0; }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+        .feature {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .feature-icon {
+            width: 46px; height: 46px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 14px;
+        }
+        .feature-icon svg { width: 24px; height: 24px; }
+        .feature h4 { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+        .feature p { font-size: 13px; color: var(--text-dim); }
+
+        section.final-cta {
+            text-align: center;
+            padding: 64px 24px;
+            background: rgba(0,212,212,0.04);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .final-cta h2 {
+            font-size: clamp(24px, 4vw, 36px);
+            font-weight: 900; margin-bottom: 14px;
+        }
+        .final-cta p {
+            color: var(--text-dim);
+            max-width: 540px; margin: 0 auto 28px;
+        }
+
+        footer {
+            padding: 32px 24px;
+            text-align: center;
+            font-size: 13px; color: var(--text-dim2);
+        }
+        footer .links {
+            display: flex; gap: 18px; justify-content: center;
+            margin-top: 10px; flex-wrap: wrap;
+        }
+        footer a { color: var(--teal); }
+
+        @media (max-width: 540px) {
+            nav { padding: 14px 18px; }
+            header.hero { padding: 36px 18px 24px; }
+            section.apps, section.how, section.why, section.final-cta { padding-left: 18px; padding-right: 18px; }
+            .app-card { padding: 24px 20px; }
+        }
+    </style>
 </head>
-
 <body>
-  <header>
-    <div class="container nav-container">
-      <a href="#" class="logo">
-        <ion-icon name="water" class="logo-icon"></ion-icon>
-        <span>E-Press</span>
-      </a>
-      <nav>
-        <a href="#features">Fonctionnalités</a>
-        <a href="#how-it-works">Comment ça marche</a>
 
-        <a href="#download" class="btn-primary">Télécharger l'App</a>
-      </nav>
+<nav>
+    <a href="/" class="brand">
+        <span class="brand-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#07101f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v6m0 0a3 3 0 0 1 3 3c0 4-3 7-3 9 0-2-3-5-3-9a3 3 0 0 1 3-3z"/>
+            </svg>
+        </span>
+        E-Press
+    </a>
+    <div class="nav-links">
+        <a href="#apps">Applications</a>
+        <a href="#how">Comment ça marche</a>
+        <a href="#why">Pourquoi nous</a>
+        <a href="/admin/">Admin</a>
+        <a href="#apps" class="nav-cta">Télécharger</a>
     </div>
-  </header>
+</nav>
 
-  <main>
-    <section class="hero">
-      <div class="container hero-content">
-        <div class="hero-text">
-          <span class="badge">Gabon <img src="assets/gabon-flag.svg" alt="Gabon Flag"
-              style="height: 12px; vertical-align: middle; margin-left: 5px;"></span>
-          <h1>Votre Pressing<br>à Portée de Main</h1>
-          <p>Fini les corvées de lessive via notre application mobile. Commandez un ramassage, suivez vos vêtements en
-            temps réel et recevez-les propres et pliés à votre porte.</p>
-          <div class="cta-group">
-            <a href="epress.apk" class="btn-primary large" download>
-              <ion-icon name="logo-android"></ion-icon>
-              Télécharger l'APK
+<header class="hero">
+    <div class="hero-pill">🇬🇦  PRESSING PREMIUM À LIBREVILLE</div>
+    <h1>Votre <span class="accent">pressing</span><br>en un clic.</h1>
+    <p class="hero-sub">
+        E-Press collecte, nettoie et livre vos vêtements à domicile.
+        Téléchargez l'application qui correspond à votre rôle &mdash;
+        <strong>client</strong>, <strong>livreur</strong> ou <strong>laverie</strong>.
+    </p>
+    <div class="hero-cta">
+        <a class="btn-primary" href="#apps">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l4-5h-3V4h-2v7H8z"/><path d="M20 18v2H4v-2H2v4h20v-4z"/></svg>
+            Télécharger l'app
+        </a>
+        <a class="btn-ghost" href="#how">Comment ça marche</a>
+    </div>
+</header>
+
+<section class="apps wrap" id="apps">
+    <h2>Deux applications, un seul service</h2>
+    <p class="lead">Choisissez l'app selon votre rôle. Toutes les deux sont gratuites.</p>
+
+    <div class="app-grid">
+        <article class="app-card">
+            <div class="app-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#00D4D4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v6m0 0a3 3 0 0 1 3 3c0 4-3 7-3 9 0-2-3-5-3-9a3 3 0 0 1 3-3z"/>
+                </svg>
+            </div>
+            <p class="for">POUR LES CLIENTS</p>
+            <h3>E-Press</h3>
+            <p>Faites collecter, laver et livrer vos vêtements en quelques clics. Suivez votre commande en temps réel.</p>
+            <ul class="feats">
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Collecte &amp; livraison à domicile</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Programme de fidélité avec points</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Suivi GPS en temps réel</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paiement à la livraison ou Mobile Money</li>
+            </ul>
+            <a class="download-btn" href="/download/epress.apk" download>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l4-5h-3V4h-2v7H8z"/><path d="M20 18v2H4v-2H2v4h20v-4z"/></svg>
+                Télécharger E-Press
             </a>
-
-          </div>
-        </div>
-        <div class="hero-image">
-          <!-- Placeholder for app screenshot or illustration -->
-          <div class="phone-mockup">
-            <img src="assets/app-screen.jpg" alt="App Screenshot" class="app-screen-img"
-              style="width: 100%; height: 100%; object-fit: cover;">
-          </div>
-        </div>
-      </div>
-      <div class="hero-bg-shape"></div>
-    </section>
-
-    <section id="features" class="features">
-      <div class="container">
-        <div class="section-header">
-          <h2>Pourquoi choisir E-Press ?</h2>
-          <p>Une expérience client repensée pour votre confort.</p>
-        </div>
-        <div class="features-grid">
-          <div class="feature-card">
-            <div class="icon-box">
-              <ion-icon name="time-outline"></ion-icon>
+            <div class="app-meta">
+                <span>Android 7.0+</span>
+                <span>~45 MB</span>
             </div>
-            <h3>Gain de Temps</h3>
-            <p>Ne perdez plus de temps à déposer et récupérer vos vêtements. Nous venons à vous.</p>
-          </div>
-          <div class="feature-card">
-            <div class="icon-box">
-              <ion-icon name="map-outline"></ion-icon>
+        </article>
+
+        <article class="app-card pro">
+            <div class="app-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="6" cy="17" r="2"/>
+                    <circle cx="17" cy="17" r="2"/>
+                    <path d="M8 17h7M15 17V8h2l2 4M3 8h12v9M3 11h12"/>
+                </svg>
             </div>
-            <h3>Suivi en Temps Réel</h3>
-            <p>Suivez le parcours de votre linge, du ramassage à la livraison, directement sur l'app.</p>
-          </div>
-          <div class="feature-card">
-            <div class="icon-box">
-              <ion-icon name="notifications-outline"></ion-icon>
+            <p class="for">POUR LES LIVREURS &amp; LAVERIES</p>
+            <h3>E-Press <span class="pro-tag">PRO</span></h3>
+            <p>Recevez et gérez les commandes. Vérification d'identité en 24h pour commencer à travailler.</p>
+            <ul class="feats">
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Livreur : acceptez les courses près de vous</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Laverie : commandes assignées automatiquement</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Vérification KYC en moins de 24h</li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paiement à la livraison ou virement</li>
+            </ul>
+            <a class="download-btn" href="/download/epress-pro.apk" download>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l4-5h-3V4h-2v7H8z"/><path d="M20 18v2H4v-2H2v4h20v-4z"/></svg>
+                Télécharger E-Press Pro
+            </a>
+            <div class="app-meta">
+                <span>Android 7.0+</span>
+                <span>~45 MB</span>
             </div>
-            <h3>Notifications Smart</h3>
-            <p>Restez informé à chaque étape : linge reçu, lavé, prêt et en route.</p>
-          </div>
-          <div class="feature-card">
-            <div class="icon-box">
-              <ion-icon name="card-outline"></ion-icon>
-            </div>
-            <h3>Prix Transparents</h3>
-            <p>Des tarifs clairs, pas de surprises. Payez à la livraison ou via l'application.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="how-it-works" class="how-it-works">
-      <div class="container">
-        <div class="section-header">
-          <h2>Comment ça marche</h2>
-        </div>
-        <div class="steps">
-          <div class="step">
-            <div class="step-number">1</div>
-            <h3>Commandez</h3>
-            <p>Sélectionnez vos articles et choisissez l'heure de ramassage.</p>
-          </div>
-          <div class="step">
-            <div class="step-number">2</div>
-            <h3>On Ramasse</h3>
-            <p>Notre coursier récupère votre linge à votre porte.</p>
-          </div>
-          <div class="step">
-            <div class="step-number">3</div>
-            <h3>On Lave</h3>
-            <p>Traitement professionnel de qualité supérieure.</p>
-          </div>
-          <div class="step">
-            <div class="step-number">4</div>
-            <h3>On Livre</h3>
-            <p>Vos vêtements reviennent propres, pliés et frais.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="download" class="download-cta">
-      <div class="container">
-        <div class="download-box">
-          <h2>Prêt à simplifier votre vie ?</h2>
-          <p>Téléchargez l'application E-Press dès maintenant.</p>
-          <a href="epress.apk" class="btn-white large" download>
-            <ion-icon name="download-outline"></ion-icon>
-            Télécharger pour Android
-          </a>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <div class="container">
-      <div class="footer-content">
-        <div class="footer-logo">
-          E-Press
-          <p>&copy; 2026 E-Press. Tous droits réservés.</p>
-        </div>
-        <div class="footer-links">
-          <a href="#">Confidentialité</a>
-          <a href="#">Conditions</a>
-
-        </div>
-      </div>
+        </article>
     </div>
-  </footer>
-</body>
+</section>
 
+<section class="how" id="how">
+    <div class="wrap">
+        <h2>Comment ça marche</h2>
+        <p class="lead">Quatre étapes, zéro friction.</p>
+        <div class="steps">
+            <div class="step-card">
+                <div class="step-num">1</div>
+                <h4>Téléchargez</h4>
+                <p>Installez E-Press sur votre Android en moins de 30 secondes.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">2</div>
+                <h4>Créez un compte</h4>
+                <p>Inscription en 3 étapes avec votre numéro de téléphone. Email optionnel.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">3</div>
+                <h4>Passez commande</h4>
+                <p>Choisissez vos articles, l'adresse de collecte, et c'est parti.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">4</div>
+                <h4>Suivez en direct</h4>
+                <p>Notifications en temps réel jusqu'à la livraison de vos vêtements propres.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="why" id="why">
+    <div class="wrap">
+        <h2>Pourquoi choisir E-Press ?</h2>
+        <p class="lead">Une expérience pressing repensée pour le mobile.</p>
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon" style="background: rgba(0,212,212,0.10);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#00D4D4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <h4>Points de fidélité</h4>
+                <p>Gagnez des points à chaque commande, convertissez-les en réductions.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon" style="background: rgba(255,215,0,0.09);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                </div>
+                <h4>Coupons exclusifs</h4>
+                <p>Codes promo réservés aux utilisateurs de l'app pour économiser plus.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon" style="background: rgba(167,139,250,0.10);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+                <h4>Suivi en temps réel</h4>
+                <p>Voyez où en est votre commande, de la collecte à la livraison.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon" style="background: rgba(52,211,153,0.10);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                </div>
+                <h4>Qualité garantie</h4>
+                <p>100% satisfait ou remboursé. Vos vêtements sont entre de bonnes mains.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="final-cta">
+    <h2>Prêt à essayer ?</h2>
+    <p>Téléchargez l'app gratuitement et créez votre compte en 3 étapes.</p>
+    <a class="btn-primary" href="#apps">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l4-5h-3V4h-2v7H8z"/><path d="M20 18v2H4v-2H2v4h20v-4z"/></svg>
+        Choisir mon app
+    </a>
+</section>
+
+<footer>
+    <div>© 2026 E-Press &middot; Made in Libreville 🇬🇦</div>
+    <div class="links">
+        <a href="mailto:contact@epress.ga">contact@epress.ga</a>
+        <a href="/admin/">Espace admin</a>
+        <a href="https://github.com/MoctarSidibe/E_press">GitHub</a>
+    </div>
+</footer>
+
+</body>
 </html>
