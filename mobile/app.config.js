@@ -8,10 +8,15 @@
 
 const VARIANT = process.env.APP_VARIANT === 'worker' ? 'worker' : 'customer';
 
+// slug stays 'mobile' for BOTH variants — that's the slug your existing Expo
+// project (extra.eas.projectId 274a76ab…) is registered under. EAS refuses to
+// build if the slug doesn't match the project. The binaries stay distinct via
+// `name` (store/launcher) and `bundleIdentifier` / `androidPackage` (install ID).
+const SHARED_SLUG = 'mobile';
+
 const VARIANTS = {
     customer: {
         name: 'E-Press',
-        slug: 'epress',
         scheme: 'epress',
         bundleIdentifier: 'com.epress.customer',
         androidPackage: 'com.epress.customer',
@@ -21,7 +26,6 @@ const VARIANTS = {
     worker: {
         // Worker app for drivers AND cleaners. Role picker on first launch.
         name: 'E-Press Pro',
-        slug: 'epress-pro',
         scheme: 'epresspro',
         bundleIdentifier: 'com.epress.pro',
         androidPackage: 'com.epress.pro',
@@ -37,7 +41,7 @@ module.exports = ({ config }) => ({
     ...config,
     expo: {
         name: v.name,
-        slug: v.slug,
+        slug: SHARED_SLUG,
         scheme: v.scheme,
         version: '1.0.0',
         orientation: 'portrait',
