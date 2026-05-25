@@ -1,109 +1,127 @@
 const QRCode = require('qrcode');
+const crypto = require('crypto');
+
+// Two separate secrets — rotate independently
+const QR_SECRET      = process.env.QR_SECRET      || 'epress_qr_v2_secret_CHANGE_IN_PROD';
+const OFFLINE_SECRET = process.env.OFFLINE_SECRET  || 'epress_offline_v2_secret_CHANGE_IN_PROD';
 
 class QRService {
+
+    // ─────────────────────────────────────────────
+    // INTERNAL: HMAC helpers
+    // ─────────────────────────────────────────────
+
+    _sign(payload, secret) {
+        // Deterministic: sort keys before stringifying
+        const data = JSON.stringify(payload, Object.keys(payload).sort());
+        return crypto.createHmac('sha256', secret).update(data).digest('hex');
+    }
+
+    _verify(payload, sig, secret) {
+        const expected = this._sign(payload, secret);
+        try {
+            return crypto.timingSafeEqual(
+                Buffer.from(expected, 'hex'),
+                Buffer.from(sig.padEnd(64, '0').slice(0, 64), 'hex')
+            );
+        } catch {
+            return false;
+        }
+    }
+
+    _randomNonce() {
+        return crypto.randomBytes(16).toString('hex'); // 32 hex chars
+    }
+
+    // ─────────────────────────────────────────────
+    // ONLINE QR: signed by server secret
+    // ─────────────────────────────────────────────
+
     /**
-     * Generate QR code data for an order
-     * @param {Object} order - Order object
-     * @returns {String} JSON string to encode in QR
+     * Build a signed QR payload for a confirmed server order.
+     * Returns a JSON string ready to be encoded into a QR image.
      */
     generateQRData(order) {
-        const qrData = {
-            orderId: order.id,
+        const payload = {
+            v:           2,
+            orderId:     order.id,
             orderNumber: order.order_number,
-            customerName: order.customer_name || '',
-            customerPhone: order.customer_phone || '',
-            itemCount: order.confirmed_item_count || 0,
-            createdAt: order.created_at,
-            pickupAddress: order.pickup_address || '',
-            deliveryAddress: order.delivery_address || ''
+            userId:      order.user_id,
+            amount:      Number(order.total_amount) || 0,
+            iat:         Math.floor(Date.now() / 1000),   // issued-at (unix)
+            nonce:       this._randomNonce(),
         };
-
-        return JSON.stringify(qrData);
+        const sig = this._sign(payload, QR_SECRET);
+        return JSON.stringify({ ...payload, sig });
     }
 
     /**
-     * Generate QR code image as base64
-     * @param {String} data - Data to encode
-     * @returns {Promise<String>} Base64 encoded PNG image
-     */
-    async generateQRImage(data) {
-        try {
-            // Generate QR code as data URL (base64)
-            const qrCodeDataURL = await QRCode.toDataURL(data, {
-                errorCorrectionLevel: 'H',  // High error correction (30% damage tolerance)
-                type: 'image/png',
-                width: 400,  // 400x400 pixels
-                margin: 2,
-                color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
-                }
-            });
-
-            return qrCodeDataURL;
-        } catch (error) {
-            throw new Error(`QR Code generation failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Generate QR code data string (for storing in database)
-     * @param {String} data - Data to encode
-     * @returns {String} The data string to be encoded
-     */
-    generateQRCode(data) {
-        // Simply return the data string - it will be encoded when needed
-        return data;
-    }
-
-    /**
-     * Validate and parse QR code data
-     * @param {String} qrData - Scanned QR code data
-     * @returns {Object} Parsed QR data
+     * Validate a QR code scanned by a driver/cleaner.
+     * Throws on any tampering, expiry or replay attempt.
+     * Caller must also check nonce in DB to prevent replays.
      */
     validateQRData(qrData) {
+        let parsed;
         try {
-            const parsed = JSON.parse(qrData);
-
-            // Support both old format {id, num} and new format {orderId, orderNumber}
-            const orderId = parsed.orderId || parsed.id;
-            const orderNumber = parsed.orderNumber || parsed.num;
-
-            // Validate required fields
-            if (!orderId || !orderNumber) {
-                throw new Error('Invalid QR code: missing order information');
-            }
-
-            // Normalize to new format
-            return {
-                orderId,
-                orderNumber,
-                customerName: parsed.customerName || parsed.customer_name || '',
-                customerPhone: parsed.customerPhone || parsed.customer_phone || '',
-                itemCount: parsed.itemCount || parsed.item_count || 0,
-                createdAt: parsed.createdAt || parsed.created_at,
-                pickupAddress: parsed.pickupAddress || parsed.pickup_address || '',
-                deliveryAddress: parsed.deliveryAddress || parsed.delivery_address || ''
-            };
-        } catch (error) {
-            throw new Error(`QR code validation failed: ${error.message}`);
+            parsed = JSON.parse(qrData);
+        } catch {
+            throw new Error('QR invalide : format illisible');
         }
+
+        const { sig, ...payload } = parsed;
+
+        if (!sig)
+            throw new Error('QR invalide : signature absente');
+        if (payload.v !== 2)
+            throw new Error('QR invalide : version non supportée');
+        if (!this._verify(payload, sig, QR_SECRET))
+            throw new Error('QR invalide : signature incorrecte');
+
+        // Freshness: valid for 48 h
+        const age = Math.floor(Date.now() / 1000) - (payload.iat || 0);
+        if (age > 48 * 3600)  throw new Error('QR expiré');
+        if (age < -300)       throw new Error('QR invalide : horodatage futur');
+
+        return payload;  // { v, orderId, orderNumber, userId, amount, iat, nonce }
     }
 
-    /**
-     * Generate complete QR code package for order
-     * @param {Object} order - Order object
-     * @returns {Promise<Object>} QR data and image
-     */
-    async generateOrderQR(order) {
-        const qrData = this.generateQRData(order);
-        const qrImage = await this.generateQRImage(qrData);
+    // ─────────────────────────────────────────────
+    // OFFLINE QR: signed by user token (device)
+    // Server re-verifies during sync using stored token hash
+    // ─────────────────────────────────────────────
 
-        return {
-            qrData,
-            qrImage,
-            qrImageFormat: 'data:image/png;base64'
-        };
+    /**
+     * Verify an offline QR payload submitted during sync.
+     * @param {Object} payload   - unsigned fields from device
+     * @param {string} sig       - HMAC submitted by device
+     * @param {string} tokenHash - SHA-256(user JWT) stored on server at login
+     */
+    verifyOfflineQR(payload, sig, tokenHash) {
+        const offlineKey = crypto
+            .createHmac('sha256', OFFLINE_SECRET)
+            .update(tokenHash)
+            .digest('hex');
+        return this._verify(payload, sig, offlineKey);
+    }
+
+    // ─────────────────────────────────────────────
+    // QR IMAGE generation
+    // ─────────────────────────────────────────────
+
+    async generateQRImage(data) {
+        return QRCode.toDataURL(data, {
+            errorCorrectionLevel: 'H',
+            type:   'image/png',
+            width:  400,
+            margin: 2,
+            color:  { dark: '#000000', light: '#FFFFFF' },
+        });
+    }
+
+    async generateOrderQR(order) {
+        const qrData  = this.generateQRData(order);
+        const qrImage = await this.generateQRImage(qrData);
+        return { qrData, qrImage };
     }
 }
 

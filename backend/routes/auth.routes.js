@@ -10,12 +10,17 @@ const validateRegister = [
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     body('fullName').notEmpty().withMessage('Full name is required'),
     body('phone').notEmpty().withMessage('Phone is required'),
-    body('role').optional().isIn(['customer', 'driver', 'admin', 'cleaner']).withMessage('Invalid role')
+    body('role').optional().isIn(['customer', 'driver', 'cleaner']).withMessage('Invalid role'),
+    body('appVariant').optional().isIn(['customer', 'worker']).withMessage('Invalid appVariant')
 ];
 
+// 'email' field on login is misnamed for legacy reasons — it actually carries
+// the user's identifier, which can be an email OR a phone number (e.g. +24177712345).
+// Reject only obviously empty/garbage input; the service does the real lookup.
 const validateLogin = [
-    body('email').isEmail().withMessage('Invalid email'),
-    body('password').notEmpty().withMessage('Password is required')
+    body('email').isString().isLength({ min: 4 }).withMessage('Identifier is required'),
+    body('password').notEmpty().withMessage('Password is required'),
+    body('appVariant').optional().isIn(['customer', 'worker']).withMessage('Invalid appVariant')
 ];
 
 // Register
@@ -52,9 +57,8 @@ router.post('/login', validateLogin, async (req, res) => {
             });
         }
 
-        const { email, password } = req.body;
-        console.log(`[LOGIN DEBUG] Request for: ${email}, Password length: ${password?.length}`);
-        const result = await authService.login(email, password);
+        const { email, password, appVariant } = req.body;
+        const result = await authService.login(email, password, appVariant);
         res.json(result);
     } catch (error) {
         console.error('[LOGIN ERROR]', error.message);

@@ -4,7 +4,7 @@ class CategoryService {
     // Get all active categories
     async getAllCategories() {
         const result = await db.query(
-            `SELECT id, name, name_fr, icon_name, base_price, express_price, 
+            `SELECT id, name, name_fr, icon_name, gif_url, base_price, express_price,
                     description, processing_time_hours, display_order
              FROM clothing_categories
              WHERE is_active = true

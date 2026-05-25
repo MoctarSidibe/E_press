@@ -60,6 +60,11 @@ const paymentRoutes = require('./routes/payment.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const adminRoutes = require('./routes/admin.routes');
 const qrRoutes = require('./routes/qr.routes');
+const pointsRoutes = require('./routes/points.routes');
+const couponRoutes = require('./routes/coupon.routes');
+const kycRoutes  = require('./routes/kyc.routes');
+const syncRoutes    = require('./routes/sync.routes');
+const laverieRoutes = require('./routes/laverie.routes');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -72,6 +77,18 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/qr', qrRoutes);
+app.use('/api/points', pointsRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/kyc',  kycRoutes);
+app.use('/api/sync',     syncRoutes);
+app.use('/api/laveries', laverieRoutes);
+
+// Serve uploaded files — accessible via both /uploads/ and /api/uploads/
+// /api/uploads/ works through the nginx proxy without extra nginx config
+const path = require('path');
+const uploadsDir = path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(uploadsDir));
+app.use('/api/uploads', express.static(uploadsDir));
 
 // Health check
 app.get('/health', (req, res) => {

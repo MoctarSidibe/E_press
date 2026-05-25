@@ -1,6 +1,79 @@
 const db = require('../database/db');
+const { Expo } = require('expo-server-sdk');
+
+// Single Expo client. Safe to share — it manages its own HTTP queue.
+const expo = new Expo();
 
 class NotificationService {
+    /**
+     * Send an Expo push to a set of user IDs. Skips users without a valid token.
+     * Failures are logged but never thrown — caller code must not depend on push
+     * delivery for correctness (we always also write a DB notification record).
+     *
+     * @param {string[]} userIds    UUIDs of recipients
+     * @param {string}   title      Notification title
+     * @param {string}   body       Notification body
+     * @param {object}   data       Arbitrary JSON delivered alongside the push
+     * @returns {Promise<{sent: number, skipped: number, failed: number}>}
+     */
+    async sendPushToUsers(userIds, title, body, data = {}) {
+        const stats = { sent: 0, skipped: 0, failed: 0 };
+        if (!Array.isArray(userIds) || userIds.length === 0) return stats;
+
+        try {
+            const result = await db.query(
+                `SELECT id, push_token FROM users
+                 WHERE id = ANY($1::uuid[]) AND push_token IS NOT NULL`,
+                [userIds]
+            );
+
+            const messages = [];
+            const invalidTokenUserIds = [];
+            for (const row of result.rows) {
+                if (!Expo.isExpoPushToken(row.push_token)) {
+                    invalidTokenUserIds.push(row.id);
+                    stats.skipped++;
+                    continue;
+                }
+                messages.push({
+                    to: row.push_token,
+                    sound: 'default',
+                    title,
+                    body,
+                    data,
+                });
+            }
+
+            // Drop tokens that look malformed so we don't keep retrying them.
+            if (invalidTokenUserIds.length > 0) {
+                await db.query(
+                    `UPDATE users SET push_token = NULL WHERE id = ANY($1::uuid[])`,
+                    [invalidTokenUserIds]
+                ).catch(() => {});
+            }
+
+            if (messages.length === 0) return stats;
+
+            const chunks = expo.chunkPushNotifications(messages);
+            for (const chunk of chunks) {
+                try {
+                    const tickets = await expo.sendPushNotificationsAsync(chunk);
+                    tickets.forEach(t => {
+                        if (t.status === 'ok') stats.sent++;
+                        else stats.failed++;
+                    });
+                } catch (err) {
+                    console.error('[Push] chunk send failed:', err.message);
+                    stats.failed += chunk.length;
+                }
+            }
+        } catch (err) {
+            console.error('[Push] sendPushToUsers error:', err.message);
+        }
+        return stats;
+    }
+
+
     /**
      * Notify all available couriers about a new pickup order
      * @param {String} orderId - Order UUID
@@ -18,14 +91,23 @@ class NotificationService {
             // Create notification record for each driver
             for (const driver of driversResult.rows) {
                 const result = await db.query(
-                    `INSERT INTO courier_notifications 
-                     (order_id, notification_type, sent_to, sent_at) 
-                     VALUES ($1, $2, $3, CURRENT_TIMESTAMP) 
+                    `INSERT INTO courier_notifications
+                     (order_id, notification_type, sent_to, sent_at)
+                     VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
                      RETURNING *`,
                     [orderId, 'pickup_available', driver.id]
                 );
                 notifications.push(result.rows[0]);
             }
+
+            // Fan-out a remote push to every active driver so offline ones get notified
+            // when the app reopens. Fire-and-forget — DB record above is the source of truth.
+            this.sendPushToUsers(
+                driversResult.rows.map(d => d.id),
+                '📦 Nouvelle commande à collecter',
+                "Une commande est disponible pour la collecte. Ouvrez l'app pour l'accepter.",
+                { type: 'pickup_available', orderId }
+            ).catch(() => {});
 
             return notifications;
         } catch (error) {
@@ -50,19 +132,72 @@ class NotificationService {
             // Create notification record for each driver
             for (const driver of driversResult.rows) {
                 const result = await db.query(
-                    `INSERT INTO courier_notifications 
-                     (order_id, notification_type, sent_to, sent_at) 
-                     VALUES ($1, $2, $3, CURRENT_TIMESTAMP) 
+                    `INSERT INTO courier_notifications
+                     (order_id, notification_type, sent_to, sent_at)
+                     VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
                      RETURNING *`,
                     [orderId, 'delivery_available', driver.id]
                 );
                 notifications.push(result.rows[0]);
             }
 
+            this.sendPushToUsers(
+                driversResult.rows.map(d => d.id),
+                '🚚 Nouvelle livraison disponible',
+                "Une commande est prête pour la livraison. Ouvrez l'app pour l'accepter.",
+                { type: 'delivery_available', orderId }
+            ).catch(() => {});
+
             return notifications;
         } catch (error) {
             throw new Error(`Failed to notify couriers: ${error.message}`);
         }
+    }
+
+    /**
+     * Notify a customer that their order status changed. Sends a remote push so
+     * the customer gets the update even with the app closed. Map status -> human
+     * label is shared with the mobile NotificationController.
+     */
+    async notifyCustomerOrderStatus(customerId, orderId, orderNumber, status) {
+        const labels = {
+            picked_up:        'collectée par le livreur',
+            in_facility:      'arrivée à la laverie',
+            cleaning:         'en cours de nettoyage',
+            ready:            'prête à être livrée',
+            out_for_delivery: 'en route pour livraison',
+            delivered:        'livrée',
+            cancelled:        'annulée',
+        };
+        const label = labels[status] || status;
+        return this.sendPushToUsers(
+            [customerId],
+            '🔔 Mise à jour de votre commande',
+            `Votre commande ${orderNumber} est ${label}.`,
+            { type: 'order_status', orderId, status }
+        );
+    }
+
+    /**
+     * Notify a user about a KYC decision (approved or rejected).
+     */
+    async notifyKycDecision(userId, approved, rejectionReason) {
+        if (approved) {
+            return this.sendPushToUsers(
+                [userId],
+                '✅ Vérification approuvée',
+                "Votre identité a été vérifiée. Vous pouvez maintenant utiliser E-Press Pro.",
+                { type: 'kyc_approved' }
+            );
+        }
+        return this.sendPushToUsers(
+            [userId],
+            '❌ Documents refusés',
+            rejectionReason
+                ? `Motif : ${rejectionReason}. Resoumettez vos documents depuis l'app.`
+                : "Vos documents n'ont pas pu être validés. Resoumettez-les depuis l'app.",
+            { type: 'kyc_rejected' }
+        );
     }
 
     /**
