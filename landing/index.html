@@ -1,189 +1,164 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>E-Press Laundry — Fast, Reliable, On‑Demand Care</title>
-    <meta
-      name="description"
-      content="E-Press is a modern laundry service with real‑time tracking, doorstep pickup, and fast delivery."
-    />
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <header class="site-header">
-      <div class="container nav">
-        <div class="logo">
-          <span class="logo-mark">🧺</span>
-          <span class="logo-text">E‑Press</span>
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Press - Votre Pressing Nouvelle Génération</title>
+  <meta name="description"
+    content="E-Press simplifie votre vie avec un service de pressing à la demande. Ramassage et livraison à domicile, suivi en temps réel.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Ionicons for icons -->
+  <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+
+<body>
+  <header>
+    <div class="container nav-container">
+      <a href="#" class="logo">
+        <ion-icon name="water" class="logo-icon"></ion-icon>
+        <span>E-Press</span>
+      </a>
+      <nav>
+        <a href="#features">Fonctionnalités</a>
+        <a href="#how-it-works">Comment ça marche</a>
+
+        <a href="#download" class="btn-primary">Télécharger l'App</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-content">
+        <div class="hero-text">
+          <span class="badge">Gabon <img src="assets/gabon-flag.svg" alt="Gabon Flag"
+              style="height: 12px; vertical-align: middle; margin-left: 5px;"></span>
+          <h1>Votre Pressing<br>à Portée de Main</h1>
+          <p>Fini les corvées de lessive via notre application mobile. Commandez un ramassage, suivez vos vêtements en
+            temps réel et recevez-les propres et pliés à votre porte.</p>
+          <div class="cta-group">
+            <a href="epress.apk" class="btn-primary large" download>
+              <ion-icon name="logo-android"></ion-icon>
+              Télécharger l'APK
+            </a>
+
+          </div>
         </div>
-        <nav class="nav-links">
-          <a href="#features">Features</a>
-          <a href="#how">How it works</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#download" class="btn btn-ghost">Get the App</a>
-        </nav>
+        <div class="hero-image">
+          <!-- Placeholder for app screenshot or illustration -->
+          <div class="phone-mockup">
+            <img src="assets/app-screen.jpg" alt="App Screenshot" class="app-screen-img"
+              style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+        </div>
       </div>
-    </header>
+      <div class="hero-bg-shape"></div>
+    </section>
 
-    <main>
-      <section class="hero">
-        <div class="container hero-grid">
-          <div class="hero-copy">
-            <p class="eyebrow">Laundry, simplified</p>
-            <h1>Clean clothes, on time, every time.</h1>
-            <p class="lead">
-              E‑Press helps you schedule pickups, track orders in real time, and
-              get delivery notifications — all in one modern app.
-            </p>
-            <div class="hero-cta" id="download">
-              <a
-                class="btn btn-primary"
-                href="https://expo.dev/artifacts/your-latest-apk"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Download APK
-              </a>
-              <a class="btn btn-ghost" href="http://161.97.66.69/" target="_blank" rel="noreferrer">
-                Admin Dashboard
-              </a>
+    <section id="features" class="features">
+      <div class="container">
+        <div class="section-header">
+          <h2>Pourquoi choisir E-Press ?</h2>
+          <p>Une expérience client repensée pour votre confort.</p>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="icon-box">
+              <ion-icon name="time-outline"></ion-icon>
             </div>
-            <p class="note">
-              APK link will be updated after the build completes.
-            </p>
-            <div class="trust-row">
-              <span>Fast pickup</span>
-              <span>Real‑time tracking</span>
-              <span>Secure payments</span>
-            </div>
+            <h3>Gain de Temps</h3>
+            <p>Ne perdez plus de temps à déposer et récupérer vos vêtements. Nous venons à vous.</p>
           </div>
-          <div class="hero-art">
-            <svg viewBox="0 0 520 520" role="img" aria-label="Laundry app illustration">
-              <defs>
-                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stop-color="#6ee7ff" />
-                  <stop offset="100%" stop-color="#7c4dff" />
-                </linearGradient>
-                <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95" />
-                  <stop offset="100%" stop-color="#e9f1ff" />
-                </linearGradient>
-              </defs>
-              <rect x="30" y="30" width="460" height="460" rx="80" fill="url(#g1)" />
-              <rect x="85" y="90" width="350" height="340" rx="40" fill="url(#g2)" />
-              <circle cx="260" cy="260" r="120" fill="#ffffff" />
-              <circle cx="260" cy="260" r="90" fill="#dfe9ff" />
-              <circle cx="260" cy="260" r="62" fill="#a8c5ff" />
-              <rect x="160" y="140" width="200" height="28" rx="14" fill="#7c4dff" opacity="0.7" />
-              <rect x="185" y="180" width="150" height="12" rx="6" fill="#93b4ff" />
-              <rect x="185" y="205" width="150" height="12" rx="6" fill="#93b4ff" />
-              <rect x="185" y="330" width="150" height="12" rx="6" fill="#93b4ff" />
-              <circle cx="410" cy="130" r="12" fill="#ffffff" opacity="0.7" />
-              <circle cx="110" cy="390" r="16" fill="#ffffff" opacity="0.6" />
-            </svg>
+          <div class="feature-card">
+            <div class="icon-box">
+              <ion-icon name="map-outline"></ion-icon>
+            </div>
+            <h3>Suivi en Temps Réel</h3>
+            <p>Suivez le parcours de votre linge, du ramassage à la livraison, directement sur l'app.</p>
+          </div>
+          <div class="feature-card">
+            <div class="icon-box">
+              <ion-icon name="notifications-outline"></ion-icon>
+            </div>
+            <h3>Notifications Smart</h3>
+            <p>Restez informé à chaque étape : linge reçu, lavé, prêt et en route.</p>
+          </div>
+          <div class="feature-card">
+            <div class="icon-box">
+              <ion-icon name="card-outline"></ion-icon>
+            </div>
+            <h3>Prix Transparents</h3>
+            <p>Des tarifs clairs, pas de surprises. Payez à la livraison ou via l'application.</p>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="section" id="features">
-        <div class="container">
-          <h2>Everything you need, in one app</h2>
-          <p class="section-lead">
-            From pickup scheduling to delivery tracking, E‑Press keeps the whole
-            process smooth and transparent.
-          </p>
-          <div class="feature-grid">
-            <div class="card">
-              <h3>Real‑time tracking</h3>
-              <p>Follow each order step‑by‑step with status updates.</p>
-            </div>
-            <div class="card">
-              <h3>Doorstep pickup</h3>
-              <p>Schedule pickups in seconds — no calls needed.</p>
-            </div>
-            <div class="card">
-              <h3>Delivery alerts</h3>
-              <p>Get notified when your order is ready or en‑route.</p>
-            </div>
-            <div class="card">
-              <h3>Admin insights</h3>
-              <p>Powerful dashboard to manage users, orders, and staff.</p>
-            </div>
+    <section id="how-it-works" class="how-it-works">
+      <div class="container">
+        <div class="section-header">
+          <h2>Comment ça marche</h2>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">1</div>
+            <h3>Commandez</h3>
+            <p>Sélectionnez vos articles et choisissez l'heure de ramassage.</p>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <h3>On Ramasse</h3>
+            <p>Notre coursier récupère votre linge à votre porte.</p>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <h3>On Lave</h3>
+            <p>Traitement professionnel de qualité supérieure.</p>
+          </div>
+          <div class="step">
+            <div class="step-number">4</div>
+            <h3>On Livre</h3>
+            <p>Vos vêtements reviennent propres, pliés et frais.</p>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="section alt" id="how">
-        <div class="container">
-          <h2>How it works</h2>
-          <div class="steps">
-            <div class="step">
-              <span class="step-number">1</span>
-              <div>
-                <h4>Request a pickup</h4>
-                <p>Choose items, pickup, and delivery times.</p>
-              </div>
-            </div>
-            <div class="step">
-              <span class="step-number">2</span>
-              <div>
-                <h4>Track processing</h4>
-                <p>See each step — received, cleaned, ready.</p>
-              </div>
-            </div>
-            <div class="step">
-              <span class="step-number">3</span>
-              <div>
-                <h4>Get delivery</h4>
-                <p>Receive on‑time drop‑off with live updates.</p>
-              </div>
-            </div>
-          </div>
+    <section id="download" class="download-cta">
+      <div class="container">
+        <div class="download-box">
+          <h2>Prêt à simplifier votre vie ?</h2>
+          <p>Téléchargez l'application E-Press dès maintenant.</p>
+          <a href="epress.apk" class="btn-white large" download>
+            <ion-icon name="download-outline"></ion-icon>
+            Télécharger pour Android
+          </a>
         </div>
-      </section>
+      </div>
+    </section>
+  </main>
 
-      <section class="section" id="pricing">
-        <div class="container pricing">
-          <div class="pricing-card">
-            <h3>Simple, transparent pricing</h3>
-            <p>
-              Flexible pricing by category. Express delivery available with a
-              small premium.
-            </p>
-            <ul>
-              <li>No hidden fees</li>
-              <li>Express option</li>
-              <li>Order history</li>
-            </ul>
-            <a class="btn btn-primary" href="#download">Get the APK</a>
-          </div>
-          <div class="pricing-highlight">
-            <h4>Fast turnaround</h4>
-            <p>
-              Most orders are completed within 24–48 hours, with notifications
-              at every step.
-            </p>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="site-footer">
-      <div class="container footer-grid">
-        <div>
-          <div class="logo">
-            <span class="logo-mark">🧺</span>
-            <span class="logo-text">E‑Press</span>
-          </div>
-          <p class="footer-note">Modern laundry management for busy people.</p>
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-logo">
+          E-Press
+          <p>&copy; 2026 E-Press. Tous droits réservés.</p>
         </div>
         <div class="footer-links">
-          <a href="http://161.97.66.69/" target="_blank" rel="noreferrer">Admin</a>
-          <a href="http://161.97.66.69/api" target="_blank" rel="noreferrer">API</a>
-          <a href="#download">Download</a>
+          <a href="#">Confidentialité</a>
+          <a href="#">Conditions</a>
+
         </div>
       </div>
-    </footer>
-  </body>
+    </div>
+  </footer>
+</body>
+
 </html>
