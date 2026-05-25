@@ -252,7 +252,7 @@ const DriverOrderDetailsScreen = ({ navigation, route }) => {
         return (
             <View style={styles.centerContainer}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>Loading order details...</Text>
+                <Text style={styles.loadingText}>Chargement des détails...</Text>
             </View>
         );
     }
@@ -295,7 +295,7 @@ const DriverOrderDetailsScreen = ({ navigation, route }) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Order #{order.order_number}</Text>
+                <Text style={styles.headerTitle}>Commande #{order.order_number}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -310,39 +310,39 @@ const DriverOrderDetailsScreen = ({ navigation, route }) => {
                             size={120}
                         />
                     </View>
-                    <Text style={styles.qrLabel}>Order Reference QR</Text>
+                    <Text style={styles.qrLabel}>Référence commande</Text>
                 </View>
 
                 {/* Order Info */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Order Information</Text>
+                    <Text style={styles.sectionTitle}>Informations commande</Text>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Status:</Text>
+                        <Text style={styles.infoLabel}>Statut :</Text>
                         <Text style={[styles.infoValue, { color: theme.colors.primary }]}>
                             {order.status?.replace(/_/g, ' ').toUpperCase()}
                         </Text>
                     </View>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Items:</Text>
+                        <Text style={styles.infoLabel}>Articles :</Text>
                         <Text style={styles.infoValue}>
-                            {order.confirmed_item_count || order.customer_estimated_count || 0} pieces
+                            {order.confirmed_item_count || order.customer_estimated_count || 0} pièces
                         </Text>
                     </View>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Total:</Text>
+                        <Text style={styles.infoLabel}>Total :</Text>
                         <Text style={styles.infoValue}>
                             {(parseFloat(order.total || 0) * 100).toFixed(0)} Fcfa
                         </Text>
                     </View>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Payment:</Text>
+                        <Text style={styles.infoLabel}>Paiement :</Text>
                         <Text style={styles.infoValue}>
-                            {order.payment_method === 'cash' ? 'Cash on Pickup' : order.payment_method?.toUpperCase()}
+                            {order.payment_method === 'cash' ? 'Espèces à la collecte' : order.payment_method?.toUpperCase()}
                         </Text>
                     </View>
                     {distance && (
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Distance:</Text>
+                            <Text style={styles.infoLabel}>Distance :</Text>
                             <Text style={[styles.infoValue, { color: theme.colors.success }]}>
                                 ~{distance} km
                             </Text>
@@ -354,7 +354,7 @@ const DriverOrderDetailsScreen = ({ navigation, route }) => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>
                         <MaterialCommunityIcons name="hanger" size={18} color={theme.colors.text} />
-                        {' '}Items to Collect ({order.items?.length || order.confirmed_item_count || 0})
+                        {' '}Articles à collecter ({order.items?.length || order.confirmed_item_count || 0})
                     </Text>
                     {order.items && order.items.length > 0 ? (
                         order.items.map((item, index) => (
@@ -377,7 +377,7 @@ const DriverOrderDetailsScreen = ({ navigation, route }) => {
                         <View style={styles.noItemsBox}>
                             <MaterialCommunityIcons name="information" size={20} color={theme.colors.textSecondary} />
                             <Text style={styles.noItemsText}>
-                                Customer estimated {order.customer_estimated_count || order.confirmed_item_count || 0} items
+                                Le client a estimé {order.customer_estimated_count || order.confirmed_item_count || 0} article(s)
                             </Text>
                         </View>
                     )}
@@ -532,30 +532,44 @@ const DriverOrderDetailsScreen = ({ navigation, route }) => {
                 </View>
             ) : (
                 // Show scan button ONLY for their specific task, hide after completion
-                (isPickupDriver && (order.status === 'pickup_assigned' || order.status === 'assigned')) ? (
+                (isPickupDriver && ['pickup_assigned', 'assigned', 'pending'].includes(order.status)) ? (
                     <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 10 : theme.spacing.lg }]}>
                         <TouchableOpacity
                             style={[styles.scanButton, { backgroundColor: theme.colors.primary }]}
-                            onPress={() => navigation.navigate('ScanQR', {
-                                orderId: order.id,
-                                checkpoint: 'picked_up'
-                            })}
+                            onPress={() => navigation.navigate('PickupOrder', { orderId: order.id })}
                         >
-                            <MaterialCommunityIcons name="qrcode-scan" size={24} color="#fff" />
-                            <Text style={styles.scanButtonText}>Scan Customer QR (Pickup)</Text>
+                            <MaterialCommunityIcons name="package-up" size={24} color="#fff" />
+                            <Text style={styles.scanButtonText}>Démarrer la collecte</Text>
                         </TouchableOpacity>
                     </View>
-                ) : (isDeliveryDriver && (order.status === 'in_transit' || order.status === 'out_for_delivery' || order.status === 'ready_for_delivery')) ? (
+                ) : (isPickupDriver && ['driver_en_route_pickup', 'arrived_pickup'].includes(order.status)) ? (
+                    <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 10 : theme.spacing.lg }]}>
+                        <TouchableOpacity
+                            style={[styles.scanButton, { backgroundColor: theme.colors.warning }]}
+                            onPress={() => navigation.navigate('PickupOrder', { orderId: order.id })}
+                        >
+                            <MaterialCommunityIcons name="restore" size={24} color="#fff" />
+                            <Text style={styles.scanButtonText}>Reprendre la collecte</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (isDeliveryDriver && ['in_transit', 'out_for_delivery', 'ready_for_delivery', 'picked_up', 'cleaning', 'ready'].includes(order.status)) ? (
                     <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 10 : theme.spacing.lg }]}>
                         <TouchableOpacity
                             style={[styles.scanButton, { backgroundColor: theme.colors.success }]}
-                            onPress={() => navigation.navigate('ScanQR', {
-                                orderId: order.id,
-                                checkpoint: 'delivered'
-                            })}
+                            onPress={() => navigation.navigate('DeliveryOrder', { orderId: order.id })}
                         >
-                            <MaterialCommunityIcons name="qrcode-scan" size={24} color="#fff" />
-                            <Text style={styles.scanButtonText}>Scan Customer QR (Delivery)</Text>
+                            <MaterialCommunityIcons name="package-down" size={24} color="#fff" />
+                            <Text style={styles.scanButtonText}>Démarrer la livraison</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (isDeliveryDriver && ['driver_en_route_delivery', 'arrived_delivery'].includes(order.status)) ? (
+                    <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 10 : theme.spacing.lg }]}>
+                        <TouchableOpacity
+                            style={[styles.scanButton, { backgroundColor: theme.colors.warning }]}
+                            onPress={() => navigation.navigate('DeliveryOrder', { orderId: order.id })}
+                        >
+                            <MaterialCommunityIcons name="restore" size={24} color="#fff" />
+                            <Text style={styles.scanButtonText}>Reprendre la livraison</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (

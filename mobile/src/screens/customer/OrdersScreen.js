@@ -116,7 +116,7 @@ const OrdersScreen = ({ navigation }) => {
                 <View style={styles.footerRow}>
                     <View style={styles.infoItem}>
                         <MaterialCommunityIcons name="package-variant" size={16} color={theme.colors.textSecondary} />
-                        <Text style={styles.infoText}>{item.confirmed_item_count || 0} items</Text>
+                        <Text style={styles.infoText}>{item.confirmed_item_count || 0} article{item.confirmed_item_count > 1 ? 's' : ''}</Text>
                     </View>
                 </View>
             </View>

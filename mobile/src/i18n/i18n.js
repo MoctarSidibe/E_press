@@ -9,21 +9,13 @@ import fr from './locales/fr.json';
 
 const LANGUAGE_STORAGE_KEY = '@app_language';
 
-// Get saved language or device language
+// Respect the user's saved preference; default to French on first launch.
 const getInitialLanguage = async () => {
   try {
-    const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (savedLanguage) {
-      return savedLanguage;
-    }
-    // Get device locale
-    const deviceLocale = Localization.getLocales()[0]?.languageCode || 'en';
-    // Support only en and fr
-    return deviceLocale.startsWith('fr') ? 'fr' : 'en';
-  } catch (error) {
-    console.error('Error getting initial language:', error);
-    return 'en';
-  }
+    const saved = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (saved === 'en' || saved === 'fr') return saved;
+  } catch (_) {}
+  return 'fr';
 };
 
 // Initialize i18n
@@ -39,7 +31,7 @@ const initI18n = async () => {
         fr: { translation: fr },
       },
       lng: initialLanguage,
-      fallbackLng: 'en',
+      fallbackLng: 'fr',
       interpolation: {
         escapeValue: false, // React already escapes
       },

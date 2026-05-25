@@ -15,11 +15,28 @@
       "autoIncrement": true,
       "env": {
         "NODE_ENV": "production",
+        "APP_VARIANT": "customer",
         "EXPO_PUBLIC_API_URL": "http://161.97.66.69/api",
         "EXPO_PUBLIC_SOCKET_URL": "http://161.97.66.69"
       },
-      "android": {
-        "buildType": "apk"
+      "android": { "buildType": "apk" }
+    },
+    "production-customer": {
+      "extends": "production",
+      "env": {
+        "NODE_ENV": "production",
+        "APP_VARIANT": "customer",
+        "EXPO_PUBLIC_API_URL": "http://161.97.66.69/api",
+        "EXPO_PUBLIC_SOCKET_URL": "http://161.97.66.69"
+      }
+    },
+    "production-worker": {
+      "extends": "production",
+      "env": {
+        "NODE_ENV": "production",
+        "APP_VARIANT": "worker",
+        "EXPO_PUBLIC_API_URL": "http://161.97.66.69/api",
+        "EXPO_PUBLIC_SOCKET_URL": "http://161.97.66.69"
       }
     }
   },

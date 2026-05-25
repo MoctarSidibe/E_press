@@ -50,21 +50,76 @@
       "title": "Créer un compte",
       "subtitle": "Rejoignez E-Press Laundry aujourd'hui",
       "fullName": "Nom complet",
+      "fullNamePlaceholder": "Jean Dupont",
       "email": "Email",
+      "emailOptional": "Email (optionnel)",
+      "emailPlaceholder": "votre@email.com",
       "phone": "Numéro de téléphone",
+      "phoneHelper": "8 chiffres après +241",
+      "phonePlaceholder": "77 12 34 56",
       "password": "Mot de passe",
+      "passwordPlaceholder": "Min. 6 caractères",
       "confirmPassword": "Confirmer le mot de passe",
+      "confirmPasswordPlaceholder": "Retapez le mot de passe",
       "role": "Je suis :",
       "customer": "Client",
-      "driver": "Coursier",
-      "cleaner": "Nettoyeur",
-      "createAccount": "Créer un compte",
+      "driver": "Livreur",
+      "cleaner": "Laverie",
+      "createAccount": "Créer mon compte",
       "hasAccount": "Vous avez déjà un compte ?",
       "signIn": "Se connecter",
+      "next": "Suivant",
+      "back": "Précédent",
+      "steps": {
+        "identity": "Vos infos",
+        "security": "Sécurité",
+        "confirm": "Finaliser",
+        "stepOf": "Étape {{current}} sur {{total}}"
+      },
+      "summary": {
+        "title": "Récapitulatif",
+        "name": "Nom",
+        "phone": "Téléphone",
+        "email": "Email",
+        "noEmail": "Non renseigné",
+        "role": "Compte"
+      },
+      "roleBadge": {
+        "customer": {
+          "title": "Compte Client",
+          "tagline": "Faites laver vos vêtements en un clic",
+          "perk1": "Collecte & livraison à domicile",
+          "perk2": "Programme de fidélité & coupons"
+        },
+        "driver": {
+          "title": "Compte Livreur",
+          "tagline": "Livrez des commandes près de chez vous",
+          "perk1": "Choisissez vos courses",
+          "perk2": "Paiement à la livraison"
+        },
+        "cleaner": {
+          "title": "Compte Laverie",
+          "tagline": "Gérez votre laverie partenaire E-Press",
+          "perk1": "Recevez les commandes assignées",
+          "perk2": "Suivi des paiements"
+        }
+      },
+      "legal": {
+        "accept": "J'ai lu et j'accepte la ",
+        "privacy": "Politique de confidentialité",
+        "and": " et les ",
+        "terms": "Conditions d'utilisation",
+        "suffix": " d'E-Press"
+      },
       "errors": {
         "fillAll": "Veuillez remplir tous les champs",
+        "nameRequired": "Le nom complet est obligatoire",
+        "phoneRequired": "Le numéro de téléphone est obligatoire",
+        "phoneInvalid": "Numéro invalide (8 chiffres requis)",
+        "emailInvalid": "Adresse email invalide",
         "passwordLength": "Le mot de passe doit contenir au moins 6 caractères",
         "passwordMatch": "Les mots de passe ne correspondent pas",
+        "legalRequired": "Vous devez accepter les conditions pour continuer",
         "failed": "Échec de l'inscription"
       }
     }
@@ -342,7 +397,15 @@
       "received": "Commande reçue à l'établissement !",
       "confirmFailed": "Échec de la confirmation de réception",
       "receivedOrders": "Commandes reçues",
-      "noOrders": "Aucune commande reçue"
+      "noOrders": "Aucune commande reçue",
+      "incomingTitle": "Commandes en cours d'arrivée",
+      "incomingEmpty": "Aucune commande en route vers votre laverie.",
+      "statusEnRoute": "En route",
+      "driver": "Livreur",
+      "invalidOrder": "Commande invalide",
+      "scanFirst": "Veuillez d'abord scanner une commande",
+      "enterCount": "Veuillez saisir le nombre d'articles",
+      "received": "Commande réceptionnée avec succès"
     },
     "ready": {
       "title": "Prêt pour la livraison",
@@ -450,6 +513,159 @@
     "myOrders": "Mes commandes",
     "reception": "Réception",
     "inProcess": "En cours",
-    "ready": "Prêt"
+    "ready": "Prêt",
+    "history": "Historique"
+  },
+  "points": {
+    "title": "Mes Points",
+    "currentBalance": "Solde actuel",
+    "unit": "points",
+    "types": {
+      "earned": "Points gagnés",
+      "redeemed": "Points utilisés",
+      "adjusted": "Ajustement",
+      "expired": "Points expirés"
+    },
+    "empty": {
+      "title": "Aucune transaction pour l'instant",
+      "subtitle": "Passez une commande pour gagner des points"
+    }
+  },
+  "kyc": {
+    "submit": {
+      "title": "Vérification d'identité",
+      "subtitleDriver": "Obligatoire pour les livreurs E-Press",
+      "subtitleCleaner": "Obligatoire pour les agents de nettoyage",
+      "infoBanner": "Vos documents sont traités de façon sécurisée et confidentielle. La vérification est effectuée sous 24H.",
+      "progress": "{{done}} / {{total}} documents fournis",
+      "documentAdded": "Document ajouté",
+      "submitButton": "Soumettre pour vérification",
+      "docs": {
+        "nationalId": { "label": "Pièce d'identité", "desc": "Photo recto de votre pièce d'identité" },
+        "selfie": { "label": "Selfie", "desc": "Tenez votre pièce d'identité à côté de votre visage" },
+        "driverLicense": { "label": "Permis de conduire", "desc": "Photo de votre permis de conduire valide" },
+        "vehiclePhoto": { "label": "Photo du véhicule", "desc": "Photo de votre moto ou véhicule de livraison" }
+      },
+      "permissions": {
+        "galleryDeniedTitle": "Permission refusée",
+        "galleryDeniedMsg": "L'accès à la galerie est nécessaire pour uploader vos documents.",
+        "pickSourceTitle": "Choisir une source",
+        "pickSourceMsg": "Comment voulez-vous fournir ce document ?",
+        "cameraOption": "Appareil photo",
+        "galleryOption": "Galerie"
+      },
+      "errors": {
+        "missingDocsTitle": "Documents manquants",
+        "missingDocsMsg": "Veuillez fournir tous les documents obligatoires (*).",
+        "submitErrorTitle": "Erreur",
+        "submitErrorDefault": "Échec de l'envoi. Vérifiez votre connexion."
+      }
+    },
+    "status": {
+      "pending": {
+        "title": "Vérification en cours",
+        "subtitle": "Vos documents ont bien été reçus. Notre équipe les examine actuellement.",
+        "stepSubmitted": "Documents soumis",
+        "stepVerifying": "Vérification en cours",
+        "stepUnlocked": "Accès activé",
+        "infoBanner": "Vous recevrez une notification dès que votre compte sera approuvé. Délai habituel : moins de 24h.",
+        "refreshButton": "Vérifier l'état de mon dossier"
+      },
+      "rejected": {
+        "title": "Documents refusés",
+        "subtitle": "Vos documents n'ont pas pu être validés. Veuillez corriger le problème et resoumettre.",
+        "reasonLabel": "Motif du refus :",
+        "tipsTitle": "Conseils pour réussir :",
+        "tipReadable": "Assurez-vous que les documents sont lisibles et non flous",
+        "tipVisible": "Toute l'information doit être visible (pas de reflet)",
+        "tipSelfie": "Pour le selfie, tenez votre CNI clairement visible",
+        "tipValidity": "Les documents doivent être en cours de validité",
+        "resubmitButton": "Resoumettre mes documents"
+      },
+      "logoutButton": "Se déconnecter"
+    },
+    "labels": {
+      "approved": "Identité vérifiée",
+      "pending": "Vérification en cours",
+      "rejected": "Documents refusés",
+      "notSubmitted": "KYC requis"
+    }
+  },
+  "offlineOrder": {
+    "headerTitle": "Commande enregistrée",
+    "successTitle": "Commande enregistrée hors ligne",
+    "successSubtitle": "Votre commande a été sauvegardée localement et sera synchronisée dès que la connexion sera rétablie.",
+    "codeLabel": "Votre code de commande",
+    "codeHint": "Présentez ce code ou le QR ci-dessous au livreur",
+    "qrLabel": "QR Code de vérification",
+    "qrHint": "Le livreur scannera ce QR pour vérifier votre commande",
+    "infoBanner": "La commande sera automatiquement synchronisée quand internet sera disponible. Vous recevrez une notification de confirmation.",
+    "shareButton": "Partager le code",
+    "homeButton": "Retour à l'accueil",
+    "shareTitle": "Commande E-Press",
+    "shareMessage": "Ma commande E-Press (hors ligne)\nCode : {{code}}\n\nCe code sera synchronisé dès la reconnexion.",
+    "alert": {
+      "title": "📦 Commande enregistrée hors ligne",
+      "message": "Votre commande a été sauvegardée localement.\n\nCode : {{code}}\n\nElle sera envoyée automatiquement dès le retour de la connexion.",
+      "viewQr": "Voir le QR code",
+      "home": "Accueil"
+    }
+  },
+  "addresses": {
+    "title": "Mes adresses",
+    "subtitle": "Gérez les lieux de collecte et de livraison",
+    "addButton": "Ajouter une adresse",
+    "empty": {
+      "title": "Aucune adresse enregistrée",
+      "subtitle": "Ajoutez votre première adresse pour gagner du temps lors de vos commandes."
+    },
+    "defaultBadge": "Par défaut",
+    "setDefault": "Définir par défaut",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "deleteConfirmTitle": "Supprimer cette adresse ?",
+    "deleteConfirmMsg": "Cette action est irréversible.",
+    "form": {
+      "newTitle": "Nouvelle adresse",
+      "editTitle": "Modifier l'adresse",
+      "labelLabel": "Nom de l'adresse",
+      "labelPlaceholder": "ex. Maison, Bureau, Chez maman",
+      "addressLabel": "Adresse complète",
+      "addressPlaceholder": "Rue, quartier, ville",
+      "locationLabel": "Localisation sur la carte",
+      "locationHelper": "Touchez la carte pour placer le point ou utilisez votre position GPS.",
+      "useMyLocation": "Utiliser ma position",
+      "instructionsLabel": "Instructions pour le livreur (optionnel)",
+      "instructionsPlaceholder": "ex. Sonnez à l'interphone, 2e étage à gauche…",
+      "defaultLabel": "Adresse par défaut",
+      "defaultHelper": "Pré-sélectionnée lors de vos prochaines commandes.",
+      "save": "Enregistrer",
+      "labelRequired": "Le nom de l'adresse est obligatoire",
+      "addressRequired": "L'adresse est obligatoire",
+      "locationRequired": "Veuillez sélectionner l'emplacement sur la carte",
+      "saveError": "Échec de l'enregistrement. Vérifiez votre connexion.",
+      "loadError": "Impossible de charger l'adresse."
+    }
+  },
+  "laverieSetup": {
+    "title": "Configurer votre laverie",
+    "subtitle": "Renseignez les informations de votre laverie pour commencer à recevoir des commandes.",
+    "nameLabel": "Nom de la laverie",
+    "namePlaceholder": "ex. Pressing du Centre",
+    "addressLabel": "Adresse",
+    "addressPlaceholder": "Rue, quartier, ville",
+    "phoneLabel": "Téléphone",
+    "radiusLabel": "Rayon (km)",
+    "locationLabel": "Localisation sur la carte",
+    "locationHelper": "Touchez la carte pour placer votre laverie, ou utilisez votre position GPS.",
+    "useMyLocation": "Utiliser ma position",
+    "submitButton": "Enregistrer ma laverie",
+    "nameRequired": "Le nom de la laverie est obligatoire.",
+    "locationRequired": "Veuillez sélectionner l'emplacement sur la carte.",
+    "radiusInvalid": "Le rayon doit être un nombre supérieur à 0.",
+    "locationDeniedTitle": "Permission refusée",
+    "locationDeniedMsg": "L'accès à votre position est nécessaire pour localiser votre laverie.",
+    "locationError": "Impossible d'obtenir votre position.",
+    "saveError": "Échec de l'enregistrement. Vérifiez votre connexion."
   }
 }

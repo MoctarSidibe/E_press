@@ -1,16 +1,20 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Production server (use for both dev and prod when testing)
+// Production server. Dev can override via EXPO_PUBLIC_DEV_API_URL in .env.local.
 const DEFAULT_API_URL = 'http://161.97.66.69/api';
 const API_URL = process.env.EXPO_PUBLIC_API_URL
     || process.env.EXPO_PUBLIC_DEV_API_URL
     || DEFAULT_API_URL;
 
+// Server base URL (without /api suffix), exported so screens can build asset URLs
+// for server-uploaded files (e.g. category GIFs) without duplicating env-var logic.
+export const API_BASE = API_URL.replace(/\/api$/, '');
+
 // Create axios instance
 const api = axios.create({
     baseURL: API_URL,
-    timeout: 15000, // Increased timeout for slower networks
+    timeout: 8000,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -19,14 +23,10 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
     async (config) => {
-        const token = await AsyncStorage.getItem('auth_token'); // Changed from 'token' to 'auth_token'
+        const token = await AsyncStorage.getItem('auth_token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
-            console.log(`[API] Request to ${config.baseURL}${config.url} with auth token`);
-        } else {
-            console.log(`[API] Request to ${config.baseURL}${config.url} WITHOUT auth token`);
         }
-        console.log(`[API] Request method: ${config.method}, data:`, config.data);
         return config;
     },
     (error) => {
@@ -37,27 +37,17 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-    (response) => {
-        console.log(`[API] Response from ${response.config.url}:`, response.status);
-        return response;
-    },
+    (response) => response,
     async (error) => {
-        // Log detailed error information
         if (error.response) {
-            // Server responded with error status
-            console.error(`[API] Error response from ${error.config?.url}:`, {
-                status: error.response.status,
-                data: error.response.data,
-                headers: error.response.headers
-            });
+            // Server responded with an error status — log it
+            console.error(`[API] ${error.config?.url} → ${error.response.status}`, error.response.data);
         } else if (error.request) {
-            // Request was made but no response received
-            console.error(`[API] No response received from ${error.config?.url}:`, error.message);
+            // No response (network down, timeout, etc.)
+            error.code    = 'NETWORK_ERROR';
             error.message = 'Network error. Please check your internet connection.';
-            error.code = 'NETWORK_ERROR';
         } else {
-            // Error setting up the request
-            console.error(`[API] Request setup error:`, error.message);
+            console.error('[API] Request setup error:', error.message);
         }
 
         if (error.response?.status === 401) {
@@ -72,7 +62,7 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-    login: (email, password) => api.post('/auth/login', { email, password }),
+    login: (email, password, appVariant) => api.post('/auth/login', { email, password, appVariant }),
     register: (data) => api.post('/auth/register', data),
     getMe: () => api.get('/auth/me'),
     verifyToken: (token) => api.post('/auth/verify', { token }),
@@ -124,11 +114,10 @@ export const categoriesAPI = {
             }
             return response;
         } catch (error) {
-            // Try to return cached data on network error
-            if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+            // Try cached data first on any network failure
+            if (error.code === 'NETWORK_ERROR') {
                 const cached = await getCachedCategories();
                 if (cached) {
-                    console.log('Using cached categories due to network error');
                     return { data: cached, fromCache: true };
                 }
             }
@@ -165,6 +154,7 @@ export const ordersAPI = {
 // Locations API
 export const locationsAPI = {
     getAll: () => api.get('/locations'),
+    getOne: (id) => api.get(`/locations/${id}`),
     create: (data) => api.post('/locations', data),
     update: (id, data) => api.patch(`/locations/${id}`, data),
     delete: (id) => api.delete(`/locations/${id}`),
@@ -206,6 +196,39 @@ export const adminAPI = {
 export const paymentsAPI = {
     processPayment: (data) => api.post('/payments/process', data),
     getPaymentMethods: () => api.get('/payments/methods'),
+};
+
+// Points / Loyalty API
+export const pointsAPI = {
+    getBalance: () => api.get('/points/balance'),
+    getHistory: (page = 1) => api.get('/points/history', { params: { page } }),
+    checkRedemption: (pointsToRedeem) => api.post('/points/check-redemption', { pointsToRedeem }),
+};
+
+// Coupons API
+export const couponsAPI = {
+    validate: (code, orderAmount) => api.post('/coupons/validate', { code, orderAmount }),
+};
+
+// KYC API
+export const kycAPI = {
+    getStatus: () => api.get('/kyc/status'),
+    submit: (formData) => api.post('/kyc/submit', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000,
+    }),
+};
+
+// Laveries API. /me endpoints are cleaner self-service (the worker app uses these
+// during laverie onboarding). The unscoped GETs are used by drivers and admin.
+export const laveriesAPI = {
+    getMine: () => api.get('/laveries/me'),
+    saveMine: (data) => api.post('/laveries/me', data),
+    // Orders assigned to the cleaner's laverie. Pass a comma-separated status list
+    // ('picked_up,in_facility' for reception view) or omit for picked_up (incoming).
+    getMyOrders: (statuses) => api.get('/laveries/me/orders', { params: statuses ? { statuses } : undefined }),
+    list: () => api.get('/laveries'),
+    nearest: (lat, lng) => api.get('/laveries/nearest', { params: { lat, lng } }),
 };
 
 export default api;

@@ -12,7 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { ordersAPI } from '../../services/api';
+import api, { ordersAPI } from '../../services/api';
 import socketService from '../../services/socket';
 import theme from '../../theme/theme';
 

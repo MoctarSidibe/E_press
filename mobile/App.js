@@ -9,14 +9,18 @@ import initI18n from './src/i18n/i18n';
 import { useTranslation } from 'react-i18next';
 import theme from './src/theme/theme';
 import { categoriesAPI } from './src/services/api';
+import { initDB } from './src/db/localDB';
+import { startConnectivityMonitor, registerBackgroundSync } from './src/services/syncService';
 
 // Navigators
-import AuthNavigator from './src/navigation/AuthNavigator';
+import GuestNavigator from './src/navigation/GuestNavigator';
+import WorkerAuthNavigator from './src/navigation/WorkerAuthNavigator';
 import CustomerNavigator from './src/navigation/CustomerNavigator';
 import DriverNavigator from './src/navigation/DriverNavigator';
 import AdminNavigator from './src/navigation/AdminNavigator';
 import CleanerNavigator from './src/navigation/CleanerNavigator';
 import NotificationController from './src/components/NotificationController';
+import { isCustomerApp, isWorkerApp, APP_VARIANT } from './src/config/variant';
 
 // Error logging helper
 const logError = (context, error) => {
@@ -37,8 +41,23 @@ function AppNavigator() {
     );
   }
 
+  // Unauthenticated: pick the entry stack based on which binary this is.
+  // Customer app -> guest browsing + customer login/register.
+  // Worker app   -> role picker (driver / cleaner) + role-specific auth.
   if (!user) {
-    return <AuthNavigator />;
+    return isWorkerApp ? <WorkerAuthNavigator /> : <GuestNavigator />;
+  }
+
+  // Authenticated. The backend already rejects cross-app login (see auth.service.js),
+  // but we add a client-side guard so a stale cached session can't surface the wrong
+  // navigator if the user's role drifted under us.
+  const roleAllowedInThisApp =
+    (isCustomerApp && user.role === 'customer') ||
+    (isWorkerApp && (user.role === 'driver' || user.role === 'cleaner'));
+
+  if (!roleAllowedInThisApp) {
+    logError('RoleNav', new Error(`role ${user.role} not allowed in variant ${APP_VARIANT}`));
+    return isWorkerApp ? <WorkerAuthNavigator /> : <GuestNavigator />;
   }
 
   try {
@@ -51,7 +70,7 @@ function AppNavigator() {
     }
   } catch (error) {
     logError('RoleNav', error);
-    return <AuthNavigator />;
+    return isWorkerApp ? <WorkerAuthNavigator /> : <GuestNavigator />;
   }
 }
 
@@ -60,11 +79,21 @@ export default function App() {
 
   useEffect(() => {
     const init = async () => {
+      // 1. Language
       await initI18n();
+      // 2. Offline DB — must be ready before any screen mounts
+      try { await initDB(); } catch (e) { console.warn('[App] initDB failed:', e.message); }
+      // 3. Connectivity monitor + background sync
+      startConnectivityMonitor();
+      registerBackgroundSync();
+      // 4. Category cache clear
       await categoriesAPI.clearCache();
       setI18nReady(true);
     };
     init();
+    return () => {
+      // stopConnectivityMonitor is imported lazily — no-op if never connected
+    };
   }, []);
 
   if (!i18nReady) {
@@ -77,7 +106,7 @@ export default function App() {
     );
   }
 
-  console.log('[App] Starting Full E-Press App');
+  console.log('[App] Starting E-Press App, variant:', APP_VARIANT);
 
   return (
     <SafeAreaProvider>

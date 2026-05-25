@@ -129,10 +129,6 @@ Track your order in the app!
                                 <Text style={styles.priceValue}>${parseFloat(order.express_fee).toFixed(2)}</Text>
                             </View>
                         )}
-                        <View style={styles.priceRow}>
-                            <Text style={styles.priceLabel}>Tax (10%)</Text>
-                            <Text style={styles.priceValue}>${parseFloat(order.tax || 0).toFixed(2)}</Text>
-                        </View>
                         <View style={[styles.priceRow, styles.totalRow]}>
                             <Text style={styles.totalLabel}>Total</Text>
                             <Text style={styles.totalValue}>${parseFloat(order.total || 0).toFixed(2)}</Text>

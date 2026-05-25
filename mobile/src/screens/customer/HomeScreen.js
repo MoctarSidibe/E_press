@@ -15,12 +15,149 @@ import { StatusBar } from 'expo-status-bar';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { categoriesAPI } from '../../services/api';
-import { getClothingIcon } from '../../config/icons';
+import { categoriesAPI, pointsAPI, API_BASE } from '../../services/api';
 import theme from '../../theme/theme';
+import VirtualCard from '../../components/VirtualCard';
+
+const TEAL = '#00D4D4';
+
+// ─── GIF icon map ──────────────────────────────────────────────────────────────
+// Includes both DB icon_name values (MaterialCommunityIcons names) and custom keys
+const GIF_ICONS = {
+    // ── DB icon_name values (migration 008) ──
+    'human-male':           require('../../../assets/images/ensemble Homme.gif'),
+    'human-female':         require('../../../assets/images/ensemble Dame.gif'),
+    'human':                require('../../../assets/images/debardeur.gif'),
+    'briefcase':            require('../../../assets/images/suit.gif'),
+    'tshirt-crew':          require('../../../assets/images/t-shirt.gif'),
+    'tshirt-crew-outline':  require('../../../assets/images/long-sleeves.gif'),
+    'underwear':            require('../../../assets/images/short.gif'),
+    'coat':                 require('../../../assets/images/peignoir-de-bain.gif'),
+    'towel':                require('../../../assets/images/towels.gif'),
+    // ── Custom/legacy keys ──
+    'shirt':            require('../../../assets/images/shirt.gif'),
+    't-shirt':          require('../../../assets/images/t-shirt.gif'),
+    'polo':             require('../../../assets/images/polo.gif'),
+    'vest':             require('../../../assets/images/vest.gif'),
+    'long-sleeves':     require('../../../assets/images/long-sleeves.gif'),
+    'sweater':          require('../../../assets/images/sweater.gif'),
+    'hoodie':           require('../../../assets/images/hoodie.gif'),
+    'hooded':           require('../../../assets/images/hooded-sweatshirt.gif'),
+    'jacket':           require('../../../assets/images/jacket.gif'),
+    'leather':          require('../../../assets/images/leather-jacket.gif'),
+    'pants':            require('../../../assets/images/pants.gif'),
+    'short':            require('../../../assets/images/short.gif'),
+    'skirt':            require('../../../assets/images/skirt.gif'),
+    'dress':            require('../../../assets/images/dress.gif'),
+    'suit':             require('../../../assets/images/suit.gif'),
+    'suit-full':        require('../../../assets/images/tuxedo.gif'),
+    'tuxedo':           require('../../../assets/images/tuxedo.gif'),
+    'coverall':         require('../../../assets/images/coverall.gif'),
+    'clothes':          require('../../../assets/images/clothes.gif'),
+    'towels':           require('../../../assets/images/towels.gif'),
+    'bed':              require('../../../assets/images/bed.gif'),
+    'pillow':           require('../../../assets/images/pillow.gif'),
+    'curtain':          require('../../../assets/images/curtain.gif'),
+    'laundry':          require('../../../assets/images/laundry.gif'),
+    'socks':            require('../../../assets/images/socks.gif'),
+    'bra':              require('../../../assets/images/bra.gif'),
+    'bikini':           require('../../../assets/images/bikini.gif'),
+    'boxer':            require('../../../assets/images/boxer-shorts.gif'),
+    'ensemble-dame':    require('../../../assets/images/ensemble Dame.gif'),
+    'ensemble-homme':   require('../../../assets/images/ensemble Homme.gif'),
+    'debardeur':        require('../../../assets/images/debardeur.gif'),
+    'pantalon-dame':    require('../../../assets/images/pantalon dame.gif'),
+    'jupe-plisse':      require('../../../assets/images/jupe plisse.gif'),
+    'robe-simple':      require('../../../assets/images/robe simple.gif'),
+    'robe-de-mariee':   require('../../../assets/images/robe de mariage.gif'),
+    'robe-soiree':      require('../../../assets/images/robe de soirée.gif'),
+    'peignoir':         require('../../../assets/images/peignoir-de-bain.gif'),
+    'paire-de-drap':    require('../../../assets/images/Paire de drap.gif'),
+    'customs-officer':  require('../../../assets/images/customs-officer.gif'),
+};
+const DEFAULT_GIF = require('../../../assets/images/clothes.gif');
+
+
+// Name-aware resolver: uses category name for granular matching (e.g. distinguishes
+// "Robe de Mariage" from "Robe Simple" even though both have icon_name = 'dress').
+// If the server has uploaded a custom gif_url, it takes priority.
+const getGif = (iconName, categoryName, gifUrl) => {
+    if (gifUrl) return { uri: `${API_BASE}${gifUrl}` };
+    const n = (categoryName || '').toLowerCase();
+
+    // ── Name-based priority matching (most specific first) ──
+    if (n.includes('mariage'))                              return GIF_ICONS['robe-de-mariee'];
+    if (n.includes('soirée') || n.includes('soiree'))      return GIF_ICONS['robe-soiree'];
+    if (n.includes('robe'))                                 return GIF_ICONS['robe-simple'];
+    if (n.includes('ensemble') && n.includes('homme'))      return GIF_ICONS['ensemble-homme'];
+    if (n.includes('ensemble') && n.includes('dame'))       return GIF_ICONS['ensemble-dame'];
+    if (n.includes('ensemble'))                             return GIF_ICONS['ensemble-homme'];
+    if (n.includes('pantalon') && n.includes('dame'))       return GIF_ICONS['pantalon-dame'];
+    if (n.includes('jupe') && n.includes('pliss'))          return GIF_ICONS['jupe-plisse'];
+    if (n.includes('paire') && n.includes('drap'))          return GIF_ICONS['paire-de-drap'];
+    if (n.includes('peignoir'))                             return GIF_ICONS['peignoir'];
+    if (n.includes('combinaison'))                          return GIF_ICONS['coverall'];
+    if (n.includes('costume'))                              return GIF_ICONS['suit'];
+    if (n.includes('débardeur') || n.includes('debardeur')) return GIF_ICONS['debardeur'];
+    if (n.includes('chemise'))                              return GIF_ICONS['shirt'];
+    if (n.includes('cuir'))                                 return GIF_ICONS['leather'];
+    if (n.includes('blouson') || n.includes('veste'))       return GIF_ICONS['jacket'];
+    if (n.includes('jupe'))                                 return GIF_ICONS['skirt'];
+    if (n.includes('pantalon'))                             return GIF_ICONS['pants'];
+
+    // ── icon_name exact match ──
+    if (!iconName) return DEFAULT_GIF;
+    const key = iconName.toLowerCase();
+    if (GIF_ICONS[key]) return GIF_ICONS[key];
+
+    // ── Partial match ──
+    const found = Object.keys(GIF_ICONS).find(k => key.includes(k) || k.includes(key));
+    return found ? GIF_ICONS[found] : DEFAULT_GIF;
+};
+
+// ─── Barème E-Press fallback (used when API is offline) ───────────────────────
+const FALLBACK_GROUPS = {
+    'Ensembles & Professionnel': [
+        { id: 'f1',  name: 'Ensemble Homme',        name_fr: 'Ensemble Homme',        base_price: 40, icon_name: 'human-male' },
+        { id: 'f2',  name: 'Ensemble Dame',         name_fr: 'Ensemble Dame',         base_price: 40, icon_name: 'human-female' },
+        { id: 'f4',  name: 'Costume',               name_fr: 'Costume',               base_price: 50, icon_name: 'briefcase' },
+        { id: 'f5',  name: 'Combinaison',            name_fr: 'Combinaison',            base_price: 40, icon_name: 'coverall' },
+        { id: 'f5b', name: 'Tenue Professionnelle', name_fr: 'Tenue Professionnelle', base_price: 30, icon_name: 'customs-officer' },
+    ],
+    'Vêtements du quotidien': [
+        { id: 'f6',  name: 'Chemise',        name_fr: 'Chemise',        base_price: 15, icon_name: 'shirt' },
+        { id: 'f7',  name: 'T-Shirt',        name_fr: 'T-Shirt',        base_price: 15, icon_name: 'tshirt-crew' },
+        { id: 'f8',  name: 'Polo',           name_fr: 'Polo',           base_price: 15, icon_name: 'polo' },
+        { id: 'f9',  name: 'Haut Dame',      name_fr: 'Haut Dame',      base_price: 15, icon_name: 'tshirt-crew-outline' },
+        { id: 'f10', name: 'Débardeur',      name_fr: 'Débardeur',      base_price: 10, icon_name: 'human' },
+        { id: 'f11', name: 'Pantalon',       name_fr: 'Pantalon',       base_price: 20, icon_name: 'pants' },
+        { id: 'f12', name: 'Pantalon Jeans', name_fr: 'Pantalon Jeans', base_price: 20, icon_name: 'pants' },
+        { id: 'f13', name: 'Pantalon Dame',  name_fr: 'Pantalon Dame',  base_price: 25, icon_name: 'pants' },
+        { id: 'f14', name: 'Jupe Simple',    name_fr: 'Jupe Simple',    base_price: 20, icon_name: 'skirt' },
+        { id: 'f15', name: 'Jupe Plissée',   name_fr: 'Jupe Plissée',   base_price: 25, icon_name: 'skirt' },
+        { id: 'f16', name: 'Culotte',        name_fr: 'Culotte',        base_price: 10, icon_name: 'underwear' },
+    ],
+    'Robes & Soirée': [
+        { id: 'f17', name: 'Robe Simple',     name_fr: 'Robe Simple',     base_price: 30,  icon_name: 'dress' },
+        { id: 'f18', name: 'Robe de Soirée',  name_fr: 'Robe de Soirée',  base_price: 120, icon_name: 'dress' },
+        { id: 'f19', name: 'Robe de Mariage', name_fr: 'Robe de Mariage', base_price: 300, icon_name: 'dress' },
+    ],
+    "Vêtements d'extérieur": [
+        { id: 'f20',  name: 'Blouson',          name_fr: 'Blouson',          base_price: 25, icon_name: 'jacket' },
+        { id: 'f20b', name: 'Veste en Cuir',    name_fr: 'Veste en Cuir',    base_price: 30, icon_name: 'leather' },
+    ],
+    'Linge de maison': [
+        { id: 'f20c', name: 'Peignoir',     name_fr: 'Peignoir',     base_price: 25,  icon_name: 'coat' },
+        { id: 'f21',  name: 'Drap Simple',  name_fr: 'Drap Simple',  base_price: 20,  icon_name: 'bed' },
+        { id: 'f22',  name: 'Paire de Drap',name_fr: 'Paire de Drap',base_price: 40,  icon_name: 'bed' },
+        { id: 'f23',  name: 'Couvre-Lit',   name_fr: 'Couvre-Lit',   base_price: 100, icon_name: 'bed' },
+        { id: 'f24',  name: 'Serviette',    name_fr: 'Serviette',    base_price: 10,  icon_name: 'towel' },
+        { id: 'f25',  name: 'Rideau',       name_fr: 'Rideau',       base_price: 25,  icon_name: 'curtain' },
+    ],
+};
 
 const HomeScreen = ({ navigation }) => {
-    const { user } = useAuth();
+    const { user, updateUserPoints } = useAuth();
     const { t } = useTranslation();
     const [categories, setCategories] = useState([]);
     const [groupedCategories, setGroupedCategories] = useState({});
@@ -29,6 +166,7 @@ const HomeScreen = ({ navigation }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [usingCache, setUsingCache] = useState(false);
+    const [pointsData, setPointsData] = useState(null);
     const fadeAnim = useState(new Animated.Value(0))[0];
 
     // Smart selection feature
@@ -37,7 +175,17 @@ const HomeScreen = ({ navigation }) => {
 
     useEffect(() => {
         loadCategories();
+        loadPoints();
     }, []);
+
+    const loadPoints = async () => {
+        try {
+            const res = await pointsAPI.getBalance();
+            setPointsData(res.data);
+        } catch (e) {
+            // Non-fatal: use user object fallback
+        }
+    };
 
     // Reset selection when screen comes into focus
     useFocusEffect(
@@ -62,65 +210,38 @@ const HomeScreen = ({ navigation }) => {
             setCategories(response.data);
             setUsingCache(response.fromCache || false);
 
-            // Group categories professionally (use fixed keys, translate when displaying)
-            const everydayKey = t('customer.home.groups.everyday');
-            const outerwearKey = t('customer.home.groups.outerwear');
-            const professionalKey = t('customer.home.groups.professional');
-            const householdKey = t('customer.home.groups.household');
-            const childrenKey = t('customer.home.groups.children');
-
-            const groups = {
-                [everydayKey]: [],
-                [outerwearKey]: [],
-                [professionalKey]: [],
-                [householdKey]: [],
-                [childrenKey]: []
+            const groupsConfig = {
+                'Ensembles & Professionnel': ['ensemble', 'costume', 'combinaison', 'tenue'],
+                'Vêtements du quotidien':    ['chemise', 'haut', 't-shirt', 'polo', 'débardeur', 'pantalon', 'jupe', 'culotte'],
+                'Robes & Soirée':            ['robe'],
+                "Vêtements d'extérieur":     ['blouson', 'veste'],
+                'Linge de maison':           ['drap', 'couvre', 'serviette', 'rideau', 'peignoir'],
             };
 
+            const groups = Object.fromEntries(Object.keys(groupsConfig).map(k => [k, []]));
             response.data.forEach(cat => {
                 const name = cat.name.toLowerCase();
-
-                // Everyday Wear (shirts, pants, dresses, etc.)
-                if (['shirt', 't-shirt', 'polo', 'pants', 'trouser', 'dress', 'skirt',
-                    'shorts', 'underwear', 'panties', 'sportswear', 'sport'].some(item => name.includes(item))) {
-                    groups[everydayKey].push(cat);
+                let placed = false;
+                for (const [groupKey, keywords] of Object.entries(groupsConfig)) {
+                    if (keywords.some(kw => name.includes(kw))) {
+                        groups[groupKey].push(cat);
+                        placed = true;
+                        break;
+                    }
                 }
-                // Professional & Uniforms (security vest, uniform, tie, etc.) — check before outerwear
-                else if (['uniform', 'officer', 'officier', 'coverall', 'combinaison',
-                    'tie', 'cravate', 'security'].some(item => name.includes(item))) {
-                    groups[professionalKey].push(cat);
-                }
-                // Outerwear & Formal (jackets, suits, sweaters — but not security vest)
-                else if (['jacket', 'coat', 'manteau', 'leather', 'sweater', 'pull',
-                    'sweatshirt', 'suit', 'costume', 'vest', 'gilet'].some(item => name.includes(item))) {
-                    groups[outerwearKey].push(cat);
-                }
-                // Household Linens (bedding, towels, curtains)
-                else if (['sheet', 'drap', 'towel', 'serviette', 'curtain', 'rideau',
-                    'blanket', 'pillow', 'oreiller', 'tablecloth', 'napkin'].some(item => name.includes(item))) {
-                    groups[householdKey].push(cat);
-                }
-                // Children & Baby
-                else if (['baby', 'bébé', 'child', 'enfant'].some(item => name.includes(item))) {
-                    groups[childrenKey].push(cat);
-                }
-                // Fallback to Everyday Wear for uncategorized items
-                else {
-                    groups[everydayKey].push(cat);
-                }
+                if (!placed) groups['Vêtements du quotidien'].push(cat);
             });
             setGroupedCategories(groups);
         } catch (err) {
             console.error('Error loading categories:', err);
-
-            // Set user-friendly error message
-            if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+            if (err.code === 'ERR_NETWORK' || err.message === 'Network Error' || err.code === 'NETWORK_ERROR') {
                 setError(t('errors.network'));
-            } else if (err.code === 'ECONNABORTED') {
-                setError(t('errors.generic'));
             } else {
                 setError(t('errors.generic'));
             }
+            // Show fallback categories so the screen isn't empty
+            setGroupedCategories(FALLBACK_GROUPS);
+            setCategories(Object.values(FALLBACK_GROUPS).flat());
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -191,13 +312,15 @@ const HomeScreen = ({ navigation }) => {
 
             {/* Header */}
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.greeting}>{t('customer.home.greetingWithName', { name: user?.fullName || 'User' })}</Text>
-                    <Text style={styles.subtitle}>{t('customer.home.subtitle')}</Text>
-                </View>
                 <Image
-                    source={require('../../../assets/images/logo customer.gif')}
-                    style={styles.logo}
+                    source={require('../../../assets/icon.svg')}
+                    style={styles.headerDropIcon}
+                    contentFit="contain"
+                />
+                <Text style={styles.headerBrand}>E-Press</Text>
+                <Image
+                    source={require('../../../assets/images/washing-machine.gif')}
+                    style={styles.headerWashIcon}
                     contentFit="contain"
                     cachePolicy="memory-disk"
                 />
@@ -209,7 +332,7 @@ const HomeScreen = ({ navigation }) => {
                     <MaterialCommunityIcons name="wifi-off" size={20} color="#fff" />
                     <Text style={styles.errorText}>{error}</Text>
                     <TouchableOpacity onPress={loadCategories} style={styles.retryButton}>
-                        <Text style={styles.retryText}>Retry</Text>
+                        <Text style={styles.retryText}>Réessayer</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -217,7 +340,7 @@ const HomeScreen = ({ navigation }) => {
             {usingCache && !error && (
                 <View style={styles.cacheBanner}>
                     <MaterialCommunityIcons name="cloud-off-outline" size={20} color="#666" />
-                    <Text style={styles.cacheText}>Showing saved data (offline)</Text>
+                    <Text style={styles.cacheText}>Données hors ligne affichées</Text>
                 </View>
             )}
 
@@ -228,224 +351,91 @@ const HomeScreen = ({ navigation }) => {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                 }
             >
-                {/* Quick Actions */}
+                {/* Virtual E-Press Card */}
                 <View style={styles.section}>
+                    <VirtualCard
+                        user={{
+                            fullName: user?.fullName,
+                            cardNumber: pointsData?.cardNumber || user?.cardNumber,
+                            pointsBalance: pointsData?.pointsBalance ?? user?.pointsBalance ?? 0,
+                            pointsEarnedTotal: pointsData?.pointsEarnedTotal ?? user?.pointsEarnedTotal ?? 0,
+                        }}
+                        onPress={() => navigation.navigate('PointsHistory')}
+                    />
+                    {/* New Order quick button below card */}
                     <TouchableOpacity
-                        style={styles.primaryButton}
+                        style={styles.newOrderButton}
                         onPress={() => navigation.navigate('NewOrder')}
+                        activeOpacity={0.85}
                     >
-                        <View style={styles.buttonBg} />
-                        <View style={styles.buttonContentContainer}>
-                            <View style={styles.buttonIcon}>
-                                <Image
-                                    source={require('../../../assets/images/add.gif')}
-                                    style={styles.addGifIcon}
-                                    contentFit="contain"
-                                    cachePolicy="memory-disk"
-                                />
-                            </View>
-                            <View style={styles.buttonContent}>
-                                <Text style={styles.primaryButtonTitle}>{t('customer.home.newOrder')}</Text>
-                                <Text style={styles.primaryButtonSubtitle}>
-                                    {t('customer.home.schedulePickup')}
-                                </Text>
-                            </View>
-                            <View style={styles.arrowContainer}>
-                                <MaterialCommunityIcons name="arrow-right" size={24} color="#fff" />
-                            </View>
+                        <Image
+                            source={require('../../../assets/images/add.gif')}
+                            style={styles.addGifSmall}
+                            contentFit="contain"
+                            cachePolicy="memory-disk"
+                        />
+                        <View style={styles.newOrderContent}>
+                            <Text style={styles.newOrderTitle}>{t('customer.home.newOrder')}</Text>
+                            <Text style={styles.newOrderSubtitle}>{t('customer.home.schedulePickup')}</Text>
+                        </View>
+                        <View style={styles.arrowContainer}>
+                            <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
                         </View>
                     </TouchableOpacity>
                 </View>
 
-                {/* Services */}
+                {/* ── Nos Services ── */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>{t('customer.home.ourServices')}</Text>
+                    <View style={styles.sectionTitleRow}>
+                        <View style={styles.sectionTitleAccent} />
+                        <Text style={styles.sectionTitle}>{t('customer.home.ourServices')}</Text>
+                    </View>
 
-                    <View>
-                        {[t('customer.home.groups.everyday'), t('customer.home.groups.outerwear'), t('customer.home.groups.professional'), t('customer.home.groups.household'), t('customer.home.groups.children')].map(groupTitle => (
-                            groupedCategories[groupTitle]?.length > 0 && (
-                                <View key={groupTitle} style={{ marginBottom: theme.spacing.lg }}>
-                                    <Text style={{
-                                        fontSize: 18,
-                                        fontWeight: 'bold',
-                                        color: theme.colors.text,
-                                        marginBottom: theme.spacing.sm,
-                                        marginLeft: theme.spacing.xs
-                                    }}>
-                                        {groupTitle}
-                                    </Text>
-                                    <View style={styles.grid}>
-                                        {groupedCategories[groupTitle].map((category) => {
-                                            const isSelected = selectedItems.some(item => item.categoryId === category.id);
-
-                                            return (
-                                                <TouchableOpacity
-                                                    key={category.id}
-                                                    style={styles.categoryCard}
-                                                    onPress={() => toggleItemSelection(category.id)}
-                                                    activeOpacity={0.7}
-                                                >
-                                                    <View style={[
-                                                        styles.categoryCardInner,
-                                                        isSelected && styles.categoryCardSelected
-                                                    ]}>
-                                                        <View style={styles.categoryIconContainer}>
-                                                            {(() => {
-                                                                const normalizedName = category.name.toLowerCase();
-                                                                let gifSource = null;
-
-                                                                if (normalizedName.includes('shirt') && !normalizedName.includes('t-shirt') && !normalizedName.includes('sweat')) {
-                                                                    gifSource = require('../../../assets/images/shirt.gif');
-                                                                } else if (normalizedName.includes('t-shirt')) {
-                                                                    gifSource = require('../../../assets/images/t-shirt.gif');
-                                                                } else if (normalizedName.includes('polo')) {
-                                                                    gifSource = require('../../../assets/images/polo.gif');
-                                                                } else if (normalizedName.includes('pants') || normalizedName.includes('trouser') || normalizedName.includes('pantalon') || normalizedName.includes('jean')) {
-                                                                    gifSource = require('../../../assets/images/pants.gif');
-                                                                } else if (normalizedName.includes('dress')) {
-                                                                    gifSource = require('../../../assets/images/dress (1).gif');
-                                                                } else if (normalizedName.includes('baby') || normalizedName.includes('bébé')) {
-                                                                    gifSource = require('../../../assets/images/baby-clothes.gif');
-                                                                } else if (normalizedName.includes('bed') || normalizedName.includes('drap')) { // Bedsheet
-                                                                    gifSource = require('../../../assets/images/bed.gif');
-                                                                } else if (normalizedName.includes('combinaison') || normalizedName.includes('coverall')) {
-                                                                    gifSource = require('../../../assets/images/coverall.gif');
-                                                                } else if (normalizedName.includes('curtain') || normalizedName.includes('rideau')) {
-                                                                    gifSource = require('../../../assets/images/curtain.gif');
-                                                                } else if (normalizedName.includes('sweatshirt')) {
-                                                                    gifSource = require('../../../assets/images/hooded-sweatshirt.gif');
-                                                                } else if (normalizedName.includes('leather') || normalizedName.includes('cuir')) {
-                                                                    gifSource = require('../../../assets/images/leather-jacket.gif');
-                                                                } else if (normalizedName.includes('coat') || normalizedName.includes('manteau') || normalizedName.includes('jacket')) {
-                                                                    gifSource = require('../../../assets/images/jacket.gif');
-                                                                } else if (normalizedName.includes('panties') || normalizedName.includes('culotte')) {
-                                                                    gifSource = require('../../../assets/images/panties.gif');
-                                                                } else if (normalizedName.includes('pillow') || normalizedName.includes('oreiller')) {
-                                                                    gifSource = require('../../../assets/images/pillow.gif');
-                                                                } else if (normalizedName.includes('shoe') || normalizedName.includes('chaussure')) {
-                                                                    gifSource = require('../../../assets/images/shoes (1).gif');
-                                                                } else if (normalizedName.includes('short')) {
-                                                                    gifSource = require('../../../assets/images/short.gif');
-                                                                } else if (normalizedName.includes('skirt') || normalizedName.includes('jupe')) {
-                                                                    gifSource = require('../../../assets/images/skirt.gif');
-                                                                } else if (normalizedName.includes('sock') || normalizedName.includes('chaussette')) {
-                                                                    gifSource = require('../../../assets/images/socks (1).gif');
-                                                                } else if (normalizedName.includes('sweater') || normalizedName.includes('pull')) {
-                                                                    gifSource = require('../../../assets/images/sweater.gif');
-                                                                } else if (normalizedName.includes('towel') || normalizedName.includes('serviette')) {
-                                                                    gifSource = require('../../../assets/images/towels.gif');
-                                                                } else if (normalizedName.includes('vest') || normalizedName.includes('gilet')) {
-                                                                    gifSource = require('../../../assets/images/vest.gif');
-                                                                } else if (normalizedName.includes('hoodie')) {
-                                                                    gifSource = require('../../../assets/images/hoodie.gif');
-                                                                } else if (normalizedName.includes('tie') || normalizedName.includes('cravate')) {
-                                                                    gifSource = require('../../../assets/images/professionality.gif');
-                                                                } else if (normalizedName.includes('uniform') || normalizedName.includes('officer') || normalizedName.includes('officier')) {
-                                                                    gifSource = require('../../../assets/images/customs-officer.gif');
-                                                                } else if (normalizedName.includes('suit') || normalizedName.includes('costume')) {
-                                                                    gifSource = require('../../../assets/images/suit.gif');
-                                                                } else if (normalizedName.includes('underwear') || normalizedName.includes('sous-vêtement')) {
-                                                                    gifSource = require('../../../assets/images/bikini.gif');
-                                                                } else if (normalizedName.includes('sportswear') || normalizedName.includes('sport')) {
-                                                                    gifSource = require('../../../assets/images/basketball-equipment.gif');
-                                                                }
-
-                                                                if (gifSource) {
-                                                                    return (
-                                                                        <Image
-                                                                            source={gifSource}
-                                                                            style={{ width: 60, height: 60 }}
-                                                                            contentFit="contain"
-                                                                            cachePolicy="memory-disk"
-                                                                        />
-                                                                    );
-                                                                }
-
-                                                                return (
-                                                                    <MaterialCommunityIcons
-                                                                        name={getClothingIcon(category.icon_name)}
-                                                                        size={40}
-                                                                        color={theme.colors.primary}
-                                                                    />
-                                                                );
-                                                            })()}
-                                                        </View>
-                                                        <Text style={styles.categoryName} numberOfLines={2}>
-                                                            {(() => {
-                                                                const name = category.name.toLowerCase();
-                                                                if (name === 'trouser' || name.includes('pants')) return 'Pants';
-                                                                return category.name;
-                                                            })()}
-                                                        </Text>
-                                                        <Text style={styles.categoryPrice}>
-                                                            {(parseFloat(category.base_price) * 100).toFixed(0)} Fcfa
-                                                        </Text>
-                                                        {isSelected && (
-                                                            <View style={styles.checkmarkBadge}>
-                                                                <MaterialCommunityIcons
-                                                                    name="check-circle"
-                                                                    size={24}
-                                                                    color={theme.colors.success}
-                                                                />
-                                                            </View>
-                                                        )}
-                                                    </View>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                    </View>
+                    {Object.entries(groupedCategories).map(([groupTitle, items]) =>
+                        items.length > 0 && (
+                            <View key={groupTitle} style={{ marginBottom: theme.spacing.lg }}>
+                                <View style={styles.groupTitleRow}>
+                                    <View style={styles.groupTitleLine} />
+                                    <Text style={styles.groupTitle}>{groupTitle}</Text>
+                                    <View style={styles.groupTitleLine} />
                                 </View>
-                            )
-                        ))}
-                    </View>
+                                <View style={styles.grid}>
+                                    {items.map((category) => {
+                                        const isSelected = selectedItems.some(i => i.categoryId === category.id);
+                                        return (
+                                            <TouchableOpacity
+                                                key={category.id}
+                                                style={styles.categoryCard}
+                                                onPress={() => toggleItemSelection(category.id)}
+                                                activeOpacity={0.75}>
+                                                <View style={[styles.categoryCardInner, isSelected && styles.categoryCardSelected]}>
+                                                    <Image
+                                                        source={getGif(category.icon_name, category.name_fr || category.name, category.gif_url)}
+                                                        style={styles.categoryGif}
+                                                        contentFit="contain"
+                                                        cachePolicy="memory-disk"
+                                                    />
+                                                    <Text style={styles.categoryName} numberOfLines={2}>
+                                                        {category.name_fr || category.name}
+                                                    </Text>
+                                                    <Text style={styles.categoryPrice}>
+                                                        {(parseFloat(category.base_price) * 100).toFixed(0)} F
+                                                    </Text>
+                                                    {isSelected && (
+                                                        <View style={styles.checkmarkBadge}>
+                                                            <MaterialCommunityIcons name="check-circle" size={22} color={TEAL} />
+                                                        </View>
+                                                    )}
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        )
+                    )}
                 </View>
 
-                {/* Features */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Why Choose Us?</Text>
-
-                    <View style={styles.featuresList}>
-                        <View style={styles.featureItem}>
-                            <View style={[styles.featureIcon, { backgroundColor: '#E3F2FD' }]}>
-                                <Image
-                                    source={require('../../../assets/images/icon_cleaning-removebg-preview.png')}
-                                    style={{ width: 32, height: 32 }}
-                                    contentFit="contain"
-                                />
-                            </View>
-                            <View style={styles.featureText}>
-                                <Text style={styles.featureTitle}>{t('customer.home.premiumCleaning')}</Text>
-                                <Text style={styles.featureDescription}>
-                                    {t('customer.home.premiumCleaningDesc')}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.featureItem}>
-                            <View style={[styles.featureIcon, { backgroundColor: '#E8F5E9' }]}>
-                                <MaterialCommunityIcons name="shield-check" size={24} color={theme.colors.success} />
-                            </View>
-                            <View style={styles.featureText}>
-                                <Text style={styles.featureTitle}>{t('customer.home.qualityGuaranteed')}</Text>
-                                <Text style={styles.featureDescription}>
-                                    {t('customer.home.qualityGuaranteedDesc')}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.featureItem}>
-                            <View style={[styles.featureIcon, { backgroundColor: '#FFF3E0' }]}>
-                                <MaterialCommunityIcons name="map-marker" size={24} color={theme.colors.secondary} />
-                            </View>
-                            <View style={styles.featureText}>
-                                <Text style={styles.featureTitle}>{t('customer.home.realTimeTracking')}</Text>
-                                <Text style={styles.featureDescription}>
-                                    {t('customer.home.realTimeTrackingDesc')}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-                </View>
             </ScrollView>
 
             {/* Floating Selection Card */}
@@ -541,22 +531,22 @@ const styles = StyleSheet.create({
         ...theme.shadows.sm,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        gap: 10,
     },
-    logo: {
-        width: 60,
-        height: 60,
-        marginLeft: theme.spacing.sm,
+    headerDropIcon: {
+        width: 32,
+        height: 32,
     },
-    greeting: {
-        fontSize: theme.fonts.sizes.xxl,
-        fontWeight: theme.fonts.weights.bold,
+    headerBrand: {
+        fontSize: 22,
+        fontWeight: '900',
         color: theme.colors.text,
-        marginBottom: theme.spacing.xs,
+        letterSpacing: 0.5,
+        flex: 1,
     },
-    subtitle: {
-        fontSize: theme.fonts.sizes.md,
-        color: theme.colors.textSecondary,
+    headerWashIcon: {
+        width: 46,
+        height: 46,
     },
     content: {
         flex: 1,
@@ -568,132 +558,100 @@ const styles = StyleSheet.create({
         marginBottom: theme.spacing.xl,
     },
     sectionTitle: {
-        fontSize: theme.fonts.sizes.lg,
-        fontWeight: theme.fonts.weights.bold,
+        fontSize: 22,
+        fontWeight: '900',
         color: theme.colors.text,
-        marginBottom: theme.spacing.md,
+        letterSpacing: 0.2,
     },
-    primaryButton: {
-        borderRadius: theme.borderRadius.xl,
-        overflow: 'hidden',
-        ...theme.shadows.lg,
-        borderWidth: 2,
-        borderColor: theme.colors.primary,
-    },
-    buttonBg: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: '#fff',
-    },
-    buttonContentContainer: {
+    newOrderButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: theme.spacing.lg,
-        paddingVertical: theme.spacing.xl,
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.borderRadius.xl,
+        padding: theme.spacing.md,
+        marginTop: theme.spacing.md,
+        borderWidth: 1.5,
+        borderColor: theme.colors.primary,
+        ...theme.shadows.md,
+    },
+    addGifSmall: { width: 50, height: 50, marginRight: theme.spacing.sm },
+    newOrderContent: { flex: 1 },
+    newOrderTitle: {
+        fontSize: theme.fonts.sizes.lg,
+        fontWeight: theme.fonts.weights.bold,
+        color: theme.colors.primary,
+        marginBottom: 2,
+    },
+    newOrderSubtitle: {
+        fontSize: theme.fonts.sizes.sm,
+        color: theme.colors.textSecondary,
     },
     arrowContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: theme.colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
-        ...theme.shadows.sm,
-    },
-    buttonIcon: {
-        marginRight: theme.spacing.sm,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    addGifIcon: {
-        width: 70,
-        height: 70,
-    },
-    buttonContent: {
-        flex: 1,
-    },
-    primaryButtonTitle: {
-        fontSize: theme.fonts.sizes.xl,
-        fontWeight: theme.fonts.weights.bold,
-        color: theme.colors.primary,
-        marginBottom: theme.spacing.xs,
-    },
-    primaryButtonSubtitle: {
-        fontSize: theme.fonts.sizes.sm,
-        color: theme.colors.textSecondary,
-        opacity: 0.9,
     },
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         marginHorizontal: -theme.spacing.xs,
     },
-    categoryCard: {
-        width: '33.33%',
-        padding: theme.spacing.xs,
-    },
+    categoryCard: { width: '33.33%', padding: theme.spacing.xs },
     categoryCardInner: {
         backgroundColor: theme.colors.surface,
         borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.md,
+        paddingVertical: 12,
+        paddingHorizontal: 6,
         alignItems: 'center',
         ...theme.shadows.sm,
-    },
-    categoryIconContainer: {
-        width: 70,
-        height: 70,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: theme.spacing.sm,
-    },
-    categoryImage: {
-        width: '100%',
-        height: '100%',
+        borderWidth: 1,
+        borderColor: 'rgba(0,212,212,0.07)',
     },
     categoryName: {
-        fontSize: theme.fonts.sizes.sm,
-        fontWeight: theme.fonts.weights.medium,
+        fontSize: 11,
+        fontWeight: '600',
         color: theme.colors.text,
         textAlign: 'center',
-        marginBottom: theme.spacing.xs,
+        marginBottom: 3,
+        lineHeight: 14,
     },
     categoryPrice: {
-        fontSize: theme.fonts.sizes.md,
-        fontWeight: theme.fonts.weights.bold,
-        color: theme.colors.primary,
+        fontSize: 12,
+        fontWeight: '800',
+        color: TEAL,
     },
-    featuresList: {
-        gap: theme.spacing.md,
+    // ── Section title with teal accent bar ──
+    sectionTitleRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.md },
+    sectionTitleAccent: { width: 4, height: 22, borderRadius: 2, backgroundColor: TEAL, marginRight: 10 },
+
+    // ── Group title with lines ──
+    groupTitleRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.sm },
+    groupTitleLine: { flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.06)' },
+    groupTitle: {
+        fontSize: 10, fontWeight: '700', color: theme.colors.textSecondary,
+        marginHorizontal: 10, textTransform: 'uppercase', letterSpacing: 1.2,
     },
-    featureItem: {
-        flexDirection: 'row',
+
+    // ── Category GIF icon ──
+    categoryGif: { width: 48, height: 48, marginBottom: 6 },
+
+    // ── Features 2×2 grid ──
+    featureGrid:      { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -theme.spacing.xs, marginTop: theme.spacing.sm },
+    featureCard:      { width: '50%', padding: theme.spacing.xs },
+    featureCardInner: {
         backgroundColor: theme.colors.surface,
         borderRadius: theme.borderRadius.lg,
         padding: theme.spacing.md,
         ...theme.shadows.sm,
-    },
-    featureIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: theme.colors.background,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: theme.spacing.md,
-    },
-    featureText: {
+        borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)',
         flex: 1,
-        justifyContent: 'center',
     },
-    featureTitle: {
-        fontSize: theme.fonts.sizes.md,
-        fontWeight: theme.fonts.weights.semibold,
-        color: theme.colors.text,
-        marginBottom: theme.spacing.xs,
-    },
-    featureDescription: {
-        fontSize: theme.fonts.sizes.sm,
-        color: theme.colors.textSecondary,
-    },
+    featureIcon:        { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: theme.spacing.sm },
+    featureTitle:       { fontSize: 13, fontWeight: '700', color: theme.colors.text, marginBottom: 4 },
+    featureDescription: { fontSize: 11, color: theme.colors.textSecondary, lineHeight: 16 },
     errorBanner: {
         backgroundColor: '#f44336',
         flexDirection: 'row',

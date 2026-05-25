@@ -11,7 +11,9 @@ import {
     Linking,
     Platform,
     Dimensions,
-    Animated
+    Animated,
+    KeyboardAvoidingView,
+    SafeAreaView,
 } from 'react-native';
 import OpenStreetMap from '../../components/map/OpenStreetMap';
 import * as Location from 'expo-location';
@@ -24,937 +26,660 @@ import SignaturePad from '../../components/SignaturePad';
 import OrderReceipt from '../../components/OrderReceipt';
 import theme from '../../theme/theme';
 
-const { height } = Dimensions.get('window');
+const { height: SCREEN_H } = Dimensions.get('window');
+const COLLAPSED_H = 180; // handle + header + action row
+const EXPANDED_H  = SCREEN_H * 0.80; // leaves ~20% for map
+
+const ACTIVE_STATUSES = ['driver_en_route_pickup', 'arrived_pickup'];
 
 const PickupOrderScreen = ({ navigation, route }) => {
     const { t } = useTranslation();
     const { orderId } = route.params;
-    const [order, setOrder] = useState(null);
-    const [loading, setLoading] = useState(true);
+
+    const [order, setOrder]       = useState(null);
+    const [loading, setLoading]   = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
-    // Route state
+    // Location
     const [userLocation, setUserLocation] = useState(null);
-    const [routeCoords, setRouteCoords] = useState([]);
-    const [routeInfo, setRouteInfo] = useState(null);
+    const [routeCoords, setRouteCoords]   = useState([]);
+    const [routeInfo, setRouteInfo]       = useState(null);
+    const locationSub = useRef(null);
+    const routeFetched = useRef(false); // fetch route only once per session
 
-    // Form state
-    const [itemCount, setItemCount] = useState('');
-    const [photos, setPhotos] = useState([]);
-    const [signature, setSignature] = useState(null);
+    // Bottom sheet
+    const [isExpanded, setIsExpanded]         = useState(false);
+    const sheetAnim = useRef(new Animated.Value(COLLAPSED_H)).current;
+
+    // Form
+    const [itemCount, setItemCount]           = useState('');
+    const [photos, setPhotos]                 = useState([]);
+    const [signature, setSignature]           = useState(null);
     const [showSignaturePad, setShowSignaturePad] = useState(false);
-    const [notes, setNotes] = useState('');
-    const [isVerified, setIsVerified] = useState(false);
-    const [showQR, setShowQR] = useState(false);
+    const [notes, setNotes]                   = useState('');
+    const [isVerified, setIsVerified]         = useState(false);
+    const [showQR, setShowQR]                 = useState(false);
 
-    // Location Tracking
-    const locationSubscription = useRef(null);
+    // ── Sheet helpers (defined BEFORE effects that use them) ───────────────────
+    const expandSheet = () => {
+        Animated.spring(sheetAnim, { toValue: EXPANDED_H, useNativeDriver: false, friction: 9, tension: 45 }).start();
+        setIsExpanded(true);
+    };
+    const collapseSheet = () => {
+        Animated.spring(sheetAnim, { toValue: COLLAPSED_H, useNativeDriver: false, friction: 9, tension: 45 }).start();
+        setIsExpanded(false);
+    };
+    const toggleSheet = () => (isExpanded ? collapseSheet : expandSheet)();
 
+    // ── Navigation guard ───────────────────────────────────────────────────────
+    useEffect(() => {
+        const unsub = navigation.addListener('beforeRemove', (e) => {
+            if (!order || !ACTIVE_STATUSES.includes(order.status)) return;
+            e.preventDefault();
+            Alert.alert(
+                'Collecte en cours',
+                'Vous avez une collecte en cours. Quitter quand même ?',
+                [
+                    { text: 'Rester', style: 'cancel' },
+                    { text: 'Quitter', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+                ]
+            );
+        });
+        return unsub;
+    }, [navigation, order]);
+
+    // ── Auto-expand when arrived ───────────────────────────────────────────────
+    useEffect(() => {
+        if (order?.status === 'arrived_pickup') expandSheet();
+    }, [order?.status]); // eslint-disable-line
+
+    // ── Init ───────────────────────────────────────────────────────────────────
     useEffect(() => {
         loadOrder();
-        startLocationTracking();
-
-        return () => {
-            if (locationSubscription.current) {
-                locationSubscription.current.remove();
-            }
-        };
+        startTracking();
+        return () => locationSub.current?.remove();
     }, []);
 
-    // Get Real-time Driver Location
-    const startLocationTracking = async () => {
+    const startTracking = async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') return;
-
-            // Initial position
-            const location = await Location.getCurrentPositionAsync({});
-            setUserLocation({
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-            });
-
-            // Watch for updates
-            locationSubscription.current = await Location.watchPositionAsync(
-                {
-                    accuracy: Location.Accuracy.High,
-                    distanceInterval: 10, // Update every 10 meters
-                    timeInterval: 5000    // Minimum 5 seconds between updates
-                },
-                (newLocation) => {
-                    const { latitude, longitude } = newLocation.coords;
-                    setUserLocation({ latitude, longitude });
-
-                    // Optional: Animate camera if tracking mode is enabled
-                    // if (trackingEnabled && mapRef.current) ...
-                }
+            const loc = await Location.getCurrentPositionAsync({});
+            setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+            locationSub.current = await Location.watchPositionAsync(
+                { accuracy: Location.Accuracy.Balanced, distanceInterval: 20, timeInterval: 10000 },
+                ({ coords: c }) => setUserLocation({ latitude: c.latitude, longitude: c.longitude })
             );
-        } catch (error) {
-            console.warn('Location error:', error);
-        }
+        } catch (e) { console.warn('Location:', e); }
     };
 
     const loadOrder = async () => {
         try {
-            const response = await ordersAPI.getById(orderId);
-            setOrder(response.data);
-            // Pre-fill expected item count
-            setItemCount(response.data.confirmed_item_count?.toString() || '');
-        } catch (error) {
-            Alert.alert(t('common.error'), t('errors.generic'));
+            const res = await ordersAPI.getById(orderId);
+            const data = res.data;
+            setOrder(data);
+            setItemCount(data.confirmed_item_count?.toString() || '');
+        } catch {
+            Alert.alert('Erreur', 'Impossible de charger la commande.');
             navigation.goBack();
         } finally {
             setLoading(false);
         }
     };
 
-    // Status update handler
-    const handleStatusUpdate = async (newStatus) => {
-        if (loading) return;
+    // ── Coordinates (computed inline — no stale closure) ──────────────────────
+    const getCoords = (o) => {
+        if (!o) return null;
+        if (o.pickup_lat && o.pickup_lng)
+            return { latitude: parseFloat(o.pickup_lat), longitude: parseFloat(o.pickup_lng) };
+        if (o.pickup_location?.latitude)
+            return { latitude: parseFloat(o.pickup_location.latitude), longitude: parseFloat(o.pickup_location.longitude) };
+        return null;
+    };
 
+    // ── Route (fetch once when both points are ready) ─────────────────────────
+    useEffect(() => {
+        if (!userLocation || !order || routeFetched.current) return;
+        const c = getCoords(order);
+        if (!c) return;
+        routeFetched.current = true;
+        routingService.getRoute(userLocation, c)
+            .then(r => { if (r) { setRouteCoords(r.coordinates); setRouteInfo({ distance: r.distance, duration: r.duration }); } })
+            .catch(() => {});
+    }, [userLocation, order]);
+
+    // ── Status update ──────────────────────────────────────────────────────────
+    const updateStatus = async (newStatus) => {
         try {
             await ordersAPI.updateStatus(orderId, newStatus);
-            // Optimistic update
             setOrder(prev => ({ ...prev, status: newStatus }));
-
-            // If arriving, zoom in to pickup
-            if (newStatus === 'arrived_pickup' && coords && mapRef.current) {
-                mapRef.current.animateToRegion({
-                    ...coords,
-                    latitudeDelta: 0.002,
-                    longitudeDelta: 0.002
-                }, 1000);
-            }
-        } catch (error) {
-            console.error('Status update failed:', error);
-            Alert.alert(t('common.error'), t('errors.generic'));
+        } catch {
+            Alert.alert('Erreur', 'Impossible de mettre à jour le statut.');
         }
     };
 
-    const getPrimaryActionButton = () => {
-        if (!order) return null;
+    const confirmArrival = () =>
+        Alert.alert(
+            'Confirmation d\'arrivée',
+            `Êtes-vous bien arrivé à :\n${order?.pickup_address || 'l\'adresse de collecte'}`,
+            [
+                { text: 'Pas encore', style: 'cancel' },
+                { text: 'Oui, je suis arrivé ✓', onPress: () => updateStatus('arrived_pickup') },
+            ]
+        );
 
-        switch (order.status) {
-            case 'assigned':
-            case 'pending':
-                return {
-                    label: t('driver.pickup.startTrip'),
-                    color: theme.colors.primary,
-                    icon: 'car-connected',
-                    onPress: () => handleStatusUpdate('driver_en_route_pickup')
-                };
-            case 'driver_en_route_pickup':
-                return {
-                    label: t('driver.pickup.arrived'),
-                    color: theme.colors.success,
-                    icon: 'map-marker-check',
-                    onPress: () => handleStatusUpdate('arrived_pickup')
-                };
-            case 'arrived_pickup':
-                return {
-                    label: t('driver.pickup.startPickup'),
-                    color: theme.colors.primary,
-                    icon: 'package-variant-closed',
-                    onPress: () => {
-                        // Ensure bottom sheet opens
-                        if (!isExpanded) {
-                            toggleBottomSheet();
-                        }
-                    }
-                };
-            default:
-                return {
-                    label: t('driver.pickup.viewDetails'),
-                    color: theme.colors.textSecondary,
-                    icon: 'chevron-up',
-                    onPress: toggleBottomSheet
-                };
-        }
-    };
-
-    const actionButton = getPrimaryActionButton();
-
-    const handleNavigate = () => {
-        if (!coords) {
-            Alert.alert(t('common.error'), t('driver.pickup.locationMissing'));
-            return;
-        }
-
-        const { latitude, longitude } = coords;
-
-        // External Navigation
+    // ── External nav ───────────────────────────────────────────────────────────
+    const openNav = () => {
+        const c = getCoords(order);
+        if (!c) { Alert.alert('Erreur', 'Coordonnées non disponibles.'); return; }
         const url = Platform.select({
-            ios: `http://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=d`,
-            android: `google.navigation:q=${latitude},${longitude}&mode=d`
+            ios: `http://maps.apple.com/?daddr=${c.latitude},${c.longitude}&dirflg=d`,
+            android: `google.navigation:q=${c.latitude},${c.longitude}&mode=d`,
         });
-
-        Linking.openURL(url).catch(() => {
-            const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-            Linking.openURL(webUrl);
-        });
+        Linking.openURL(url).catch(() =>
+            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${c.latitude},${c.longitude}`)
+        );
     };
 
-    const handleScanQR = () => {
-        navigation.navigate('QRScanner', {
-            orderId,
-            onScan: (scannedOrder) => {
-                setIsVerified(true);
-                Alert.alert(t('driver.pickup.qrVerified'), t('driver.pickup.qrVerifiedMessage', { orderNumber: scannedOrder.order_number }));
-            }
-        });
-    };
-
-    const handleSaveSignature = (signatureData) => {
-        setSignature(signatureData);
-        setShowSignaturePad(false);
-        Alert.alert(t('common.success'), t('driver.pickup.signatureCaptured'));
-    };
-
+    // ── Submit ─────────────────────────────────────────────────────────────────
     const handleSubmit = async () => {
-        console.log('Submit Triggered', { itemCount, signatureStr: signature ? 'yes' : 'no', photosCount: photos.length });
-
-        // Logic Enforcement: Must have arrived
-        if (order.status !== 'arrived_pickup' && order.status !== 'picked_up') {
-            Alert.alert(t('driver.pickup.actionRequired'), t('driver.pickup.tapArrivedFirst'));
-            return;
-        }
-
-        // Validation
         if (!itemCount || itemCount === '0') {
-            Alert.alert(t('common.error'), t('driver.pickup.enterItemCount'));
-            return;
+            Alert.alert('Requis', 'Indiquez le nombre d\'articles collectés.'); return;
         }
-
         if (!signature) {
-            Alert.alert(t('common.error'), t('driver.pickup.customerSignatureRequired'));
-            return;
+            Alert.alert('Requis', 'La signature du client est obligatoire.'); return;
         }
-
         if (photos.length === 0) {
-            Alert.alert(
-                t('driver.pickup.noPhotos'),
-                t('driver.pickup.noPhotosContinue'),
-                [
-                    { text: t('common.cancel'), style: 'cancel' },
-                    { text: t('driver.pickup.continue'), onPress: submitPickup }
-                ]
-            );
+            Alert.alert('Aucune photo', 'Continuer sans photo ?', [
+                { text: 'Annuler', style: 'cancel' },
+                { text: 'Continuer', onPress: doSubmit },
+            ]);
             return;
         }
-
-        await submitPickup();
+        await doSubmit();
     };
 
-    const submitPickup = async () => {
+    const doSubmit = async () => {
         setSubmitting(true);
-
         try {
-            const scanData = {
+            await ordersAPI.scanOrder(orderId, {
                 checkpoint: 'picked_up',
-                item_count: parseInt(itemCount),
+                item_count: parseInt(itemCount, 10),
                 signature_data: signature,
-                photos: photos, // Array of URIs
-                notes
-            };
-
-            await ordersAPI.scanOrder(orderId, scanData);
-
-            Alert.alert(
-                t('common.success'),
-                t('driver.pickup.pickupCompleted'),
-                [
-                    {
-                        text: t('common.ok'),
-                        onPress: () => navigation.navigate('Available')
-                    }
-                ]
-            );
-        } catch (error) {
-            Alert.alert(t('common.error'), error.response?.data?.error || t('driver.pickup.failedCompletePickup'));
+                photos,
+                notes,
+            });
+            Alert.alert('Collecte confirmée ✓', 'La commande a bien été collectée.', [
+                { text: 'OK', onPress: () => navigation.popToTop() },
+            ]);
+        } catch (err) {
+            Alert.alert('Erreur', err.response?.data?.error || 'Échec de la confirmation.');
         } finally {
             setSubmitting(false);
         }
     };
 
-    // Animation for bottom sheet
-    const [isExpanded, setIsExpanded] = useState(false);
-    const bottomSheetHeight = useRef(new Animated.Value(height * 0.35)).current;
+    // ── Derived ────────────────────────────────────────────────────────────────
+    const coords      = getCoords(order);
+    const isEnRoute   = order?.status === 'driver_en_route_pickup';
+    const isArrived   = order?.status === 'arrived_pickup';
+    const stepsOk     = { qr: isVerified, items: !!itemCount && itemCount !== '0', sig: !!signature };
+    const canConfirm  = stepsOk.qr && stepsOk.items && stepsOk.sig;
 
-    // Map Ref
-    const mapRef = useRef(null);
+    const mapMarkers = [
+        ...(coords ? [{ latitude: coords.latitude, longitude: coords.longitude, title: 'Collecte', description: order?.pickup_address || '' }] : []),
+        ...(userLocation ? [{ latitude: userLocation.latitude, longitude: userLocation.longitude, title: 'Vous', description: '' }] : []),
+    ];
 
-    const toggleBottomSheet = () => {
-        const targetHeight = isExpanded ? height * 0.35 : height * 0.85;
-
-        Animated.spring(bottomSheetHeight, {
-            toValue: targetHeight,
-            useNativeDriver: false,
-            friction: 6,
-            tension: 40
-        }).start();
-
-        setIsExpanded(!isExpanded);
-    };
-
-    // Helper to get coordinates robustly
-    const getOrderCoordinates = () => {
+    const getPrimaryBtn = () => {
         if (!order) return null;
-
-        // Try pickup_location object first (if backend returns this structure)
-        if (order.pickup_location?.latitude && order.pickup_location?.longitude) {
-            return {
-                latitude: parseFloat(order.pickup_location.latitude),
-                longitude: parseFloat(order.pickup_location.longitude)
-            };
-        }
-
-        // Fallback to flat properties (if backend returns this structure like in list view)
-        if (order.pickup_lat && order.pickup_lng) {
-            return {
-                latitude: parseFloat(order.pickup_lat),
-                longitude: parseFloat(order.pickup_lng)
-            };
-        }
-
-        return null;
-    };
-
-    const coords = getOrderCoordinates();
-
-    // Fetch Route when we have both points
-    useEffect(() => {
-        if (userLocation && coords) {
-            fetchRoute();
-        }
-    }, [userLocation, order]);
-
-    const fetchRoute = async () => {
-        if (!userLocation || !coords) return;
-
-        const result = await routingService.getRoute(userLocation, coords);
-        if (result) {
-            setRouteCoords(result.coordinates);
-            setRouteInfo({
-                distance: result.distance,
-                duration: result.duration
-            });
-
-            // Zoom map to fit route
-            if (mapRef.current) {
-                mapRef.current.fitToCoordinates(result.coordinates, {
-                    edgePadding: { top: 100, right: 50, bottom: height * 0.35 + 50, left: 50 },
-                    animated: true,
-                });
-            }
+        switch (order.status) {
+            case 'assigned': case 'pending':
+                return { label: 'Démarrer la collecte', color: theme.colors.primary, icon: 'motorbike', action: () => updateStatus('driver_en_route_pickup') };
+            case 'driver_en_route_pickup':
+                return { label: 'Je suis Arrivé', color: theme.colors.success, icon: 'map-marker-check', action: confirmArrival };
+            case 'arrived_pickup':
+                return { label: isExpanded ? 'Réduire' : 'Voir la collecte', color: theme.colors.primary, icon: 'package-variant-closed', action: toggleSheet };
+            default:
+                return { label: 'Détails', color: theme.colors.textSecondary, icon: 'chevron-up', action: toggleSheet };
         }
     };
+    const btn = getPrimaryBtn();
 
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-            </View>
-        );
-    }
+    // ── Guards ─────────────────────────────────────────────────────────────────
+    if (loading) return <View style={s.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+    if (!order)  return null;
+
+    const statusLabel = {
+        assigned:               'Assigné',
+        pending:                'En attente',
+        driver_en_route_pickup: 'En route',
+        arrived_pickup:         'Arrivé',
+        picked_up:              'Collecté',
+    }[order.status] || order.status.replace(/_/g, ' ');
 
     return (
-        <View style={styles.container}>
-            {/* Full Screen Map */}
-            {/* Full Screen Map */}
+        <View style={s.container}>
+            {/* ── Map ── */}
             <OpenStreetMap
                 style={StyleSheet.absoluteFill}
                 initialRegion={{
-                    latitude: coords?.latitude || 0,
-                    longitude: coords?.longitude || 0,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
+                    latitude:      coords?.latitude  || userLocation?.latitude  || 0.3924,
+                    longitude:     coords?.longitude || userLocation?.longitude || 9.4536,
+                    latitudeDelta: 0.02, longitudeDelta: 0.02,
                 }}
-                markers={coords ? [{
-                    latitude: coords.latitude,
-                    longitude: coords.longitude,
-                    title: "Pickup Location",
-                    description: order.pickup_address
-                }] : []}
-                polylines={routeCoords.length > 0 ? [{
-                    coordinates: routeCoords,
-                    strokeColor: theme.colors.primary,
-                    strokeWidth: 4
-                }] : []}
+                markers={mapMarkers}
+                polylines={routeCoords.length ? [{ coordinates: routeCoords, strokeColor: theme.colors.primary, strokeWidth: 5 }] : []}
                 interaction="nav"
-                onRegionChange={(region) => {
-                    // Update user location tracking if needed
-                }}
             />
 
-            {/* Top Route Info Card */}
-            {routeInfo && order?.status === 'driver_en_route_pickup' && (
-                <View style={styles.routeInfoCard}>
-                    <View style={styles.routeStats}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{(routeInfo.distance / 1000).toFixed(1)}</Text>
-                            <Text style={styles.statLabel}>km</Text>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{Math.ceil(routeInfo.duration / 60)}</Text>
-                            <Text style={styles.statLabel}>min</Text>
-                        </View>
-                    </View>
+            {/* ── ETA pill (en route) ── */}
+            {routeInfo && isEnRoute && (
+                <View style={s.etaPill}>
+                    <MaterialCommunityIcons name="clock-fast" size={15} color="#fff" />
+                    <Text style={s.etaTxt}>{Math.ceil(routeInfo.duration / 60)} min</Text>
+                    <View style={s.etaDiv} />
+                    <MaterialCommunityIcons name="map-marker-distance" size={15} color="#fff" />
+                    <Text style={s.etaTxt}>{(routeInfo.distance / 1000).toFixed(1)} km</Text>
                 </View>
             )}
 
-            {/* Top Overlay Controls */}
-            <View style={styles.topOverlay}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color="#000" />
+            {/* ── Arrived badge ── */}
+            {isArrived && (
+                <View style={[s.etaPill, { backgroundColor: theme.colors.success }]}>
+                    <MaterialCommunityIcons name="check-circle" size={15} color="#fff" />
+                    <Text style={s.etaTxt}>Arrivé — collecte en cours</Text>
+                </View>
+            )}
+
+            {/* ── Top controls ── */}
+            <View style={s.topRow}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={s.circleBtn}>
+                    <MaterialCommunityIcons name="arrow-left" size={22} color="#111" />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleNavigate} style={styles.navigateButton}>
-                    <MaterialCommunityIcons name="navigation" size={20} color="#fff" />
-                    <Text style={styles.navigateText}>NAVIGATE</Text>
+                <TouchableOpacity onPress={openNav} style={s.navBtn}>
+                    <MaterialCommunityIcons name="navigation-variant" size={17} color="#fff" />
+                    <Text style={s.navBtnTxt}>Naviguer</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Bottom Sheet Order Details */}
-            <Animated.View style={[styles.bottomSheet, { height: bottomSheetHeight }]}>
-                {/* Drag Handle / Header */}
-                <TouchableOpacity activeOpacity={0.9} onPress={toggleBottomSheet} style={styles.sheetHeader}>
-                    <View style={styles.handleIndicator} />
-                    <View style={styles.headerContent}>
-                        <View>
-                            <Text style={styles.customerName}>{order.customer_name}</Text>
-                            <Text style={styles.orderNumber}>Order #{order.order_number}</Text>
-                        </View>
-                        <View style={styles.statusBadge}>
-                            <Text style={styles.statusText}>{order.status.replace(/_/g, ' ').toUpperCase()}</Text>
-                        </View>
-                    </View>
+            {/* ── Bottom sheet ── */}
+            <Animated.View style={[s.sheet, { height: sheetAnim }]}>
 
-                    {/* Action Row */}
-                    <View style={styles.actionRow}>
-                        {actionButton && (
-                            <TouchableOpacity
-                                style={[styles.primaryButton, { backgroundColor: actionButton.color }]}
-                                onPress={actionButton.onPress}
-                            >
-                                <MaterialCommunityIcons name={actionButton.icon} size={20} color="#fff" style={{ marginRight: 8 }} />
-                                <Text style={styles.primaryButtonText}>{actionButton.label}</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        {/* Secondary External Map Button */}
-                        <TouchableOpacity style={styles.mapButton} onPress={handleNavigate}>
-                            <MaterialCommunityIcons name="google-maps" size={24} color={theme.colors.primary} />
-                        </TouchableOpacity>
-                    </View>
+                {/* Drag handle */}
+                <TouchableOpacity activeOpacity={0.85} onPress={toggleSheet} style={s.handleWrap}>
+                    <View style={s.handleBar} />
                 </TouchableOpacity>
 
-                {/* Scrollable Content */}
-                <ScrollView
-                    style={styles.sheetContent}
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                    showsVerticalScrollIndicator={false}
-                >
-                    {/* Customer Info */}
-                    <View style={styles.section}>
-                        <View style={styles.customerRow}>
-                            <View style={styles.customerAvatar}>
-                                <Text style={styles.customerInitials}>
-                                    {order.customer_name?.substring(0, 2).toUpperCase()}
-                                </Text>
-                            </View>
-                            <View style={styles.customerInfo}>
-                                <Text style={styles.customerName}>{order.customer_name}</Text>
-                                <TouchableOpacity onPress={() => Linking.openURL(`tel:${order.customer_phone}`)}>
-                                    <Text style={styles.customerPhone}>{order.customer_phone}</Text>
-                                </TouchableOpacity>
-                            </View>
-                            <TouchableOpacity
-                                style={styles.callButton}
-                                onPress={() => Linking.openURL(`tel:${order.customer_phone}`)}
-                            >
-                                <MaterialCommunityIcons name="phone" size={24} color={theme.colors.primary} />
-                            </TouchableOpacity>
-                        </View>
+                {/* Header row */}
+                <View style={s.sheetHead}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={s.clientName} numberOfLines={1}>{order.customer_name || '—'}</Text>
+                        <Text style={s.orderRef}>Commande #{order.order_number}</Text>
                     </View>
+                    <View style={[s.badge, isArrived && s.badgeGreen]}>
+                        <Text style={s.badgeTxt}>{statusLabel}</Text>
+                    </View>
+                </View>
 
-                    {/* Actions Grid */}
-                    <View style={styles.actionGrid}>
-                        <TouchableOpacity style={styles.actionCard} onPress={() => setShowQR(true)}>
-                            <View style={[styles.actionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                                <MaterialCommunityIcons
-                                    name="qrcode"
-                                    size={28}
-                                    color={theme.colors.primary}
-                                />
-                            </View>
-                            <Text style={styles.actionLabel}>Show QR</Text>
+                {/* Primary action + map icon */}
+                <View style={s.actionRow}>
+                    {btn && (
+                        <TouchableOpacity style={[s.mainBtn, { backgroundColor: btn.color }]} onPress={btn.action}>
+                            <MaterialCommunityIcons name={btn.icon} size={19} color="#fff" style={{ marginRight: 7 }} />
+                            <Text style={s.mainBtnTxt}>{btn.label}</Text>
                         </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.actionCard, isVerified && { borderColor: theme.colors.success, backgroundColor: theme.colors.success + '10' }]}
-                            onPress={handleScanQR}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: isVerified ? theme.colors.success + '20' : theme.colors.secondary + '20' }]}>
-                                <MaterialCommunityIcons
-                                    name={isVerified ? "check-decagram" : "qrcode-scan"}
-                                    size={28}
-                                    color={isVerified ? theme.colors.success : theme.colors.secondary}
-                                />
-                            </View>
-                            <Text style={[styles.actionLabel, isVerified && { color: theme.colors.success, fontWeight: 'bold' }]}>
-                                {isVerified ? t('driver.pickup.verified') : t('driver.pickup.scanQR')}
-                            </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.actionCard} onPress={() => setShowSignaturePad(true)}>
-                            <View style={[styles.actionIcon, { backgroundColor: signature ? theme.colors.success + '20' : theme.colors.primary + '20' }]}>
-                                <MaterialCommunityIcons
-                                    name={signature ? "check-circle" : "draw"}
-                                    size={28}
-                                    color={signature ? theme.colors.success : theme.colors.primary}
-                                />
-                            </View>
-                            <Text style={styles.actionLabel}>{signature ? t('driver.pickup.signed') : t('driver.pickup.signature')}</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Verification & Items */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>{t('driver.pickup.verification')}</Text>
-                        <View style={styles.countContainer}>
-                            <TouchableOpacity
-                                style={styles.countButton}
-                                onPress={() => setItemCount(Math.max(0, parseInt(itemCount || 0) - 1).toString())}
-                            >
-                                <MaterialCommunityIcons name="minus" size={24} color={theme.colors.primary} />
-                            </TouchableOpacity>
-                            <View style={styles.countDisplay}>
-                                <TextInput
-                                    style={styles.countInput}
-                                    value={itemCount}
-                                    onChangeText={setItemCount}
-                                    keyboardType="number-pad"
-                                    placeholder="0"
-                                />
-                                <Text style={styles.countLabel}>{t('driver.pickup.items')}</Text>
-                            </View>
-                            <TouchableOpacity
-                                style={styles.countButton}
-                                onPress={() => setItemCount((parseInt(itemCount || 0) + 1).toString())}
-                            >
-                                <MaterialCommunityIcons name="plus" size={24} color={theme.colors.primary} />
-                            </TouchableOpacity>
-                        </View>
-                        {itemCount && parseInt(itemCount) !== order.confirmed_item_count && (
-                            <View style={styles.warningBox}>
-                                <MaterialCommunityIcons name="alert" size={20} color={theme.colors.warning} />
-                                <Text style={styles.warningText}>
-                                    {t('driver.pickup.mismatchExpected', { count: order.confirmed_item_count })}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Photos */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>{t('driver.pickup.photos')}</Text>
-                        <PhotoCapture
-                            photos={photos}
-                            onPhotosChange={setPhotos}
-                            maxPhotos={5}
-                        />
-                    </View>
-
-                    <View style={{ height: 20 }} />
-                </ScrollView>
-
-                {/* Fixed Footer Logic inside Bottom Sheet */}
-                <View style={styles.sheetFooter}>
-                    <TouchableOpacity
-                        style={[
-                            styles.submitButton,
-                            (submitting || (order && order.status !== 'arrived_pickup')) && styles.submitButtonDisabled
-                        ]}
-                        onPress={handleSubmit}
-                        disabled={submitting}
-                    >
-                        {submitting ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <Text style={styles.submitButtonText}>CONFIRM PICKUP</Text>
-                        )}
+                    )}
+                    <TouchableOpacity style={s.mapIcon} onPress={openNav}>
+                        <MaterialCommunityIcons name="google-maps" size={24} color={theme.colors.primary} />
                     </TouchableOpacity>
                 </View>
+
+                {/* ── Scrollable content ── */}
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                >
+                    <ScrollView
+                        style={{ flex: 1 }}
+                        contentContainerStyle={s.scrollPad}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        nestedScrollEnabled={true}
+                    >
+                        {/* Step indicator (shown when arrived) */}
+                        {isArrived && (
+                            <View style={s.steps}>
+                                {[
+                                    { done: stepsOk.qr,    label: 'QR',        icon: 'qrcode-scan' },
+                                    { done: stepsOk.items, label: 'Articles',   icon: 'package-variant' },
+                                    { done: stepsOk.sig,   label: 'Signature',  icon: 'draw' },
+                                ].map((step, i) => (
+                                    <React.Fragment key={step.label}>
+                                        <View style={s.step}>
+                                            <View style={[s.stepCircle, step.done && s.stepCircleDone]}>
+                                                <MaterialCommunityIcons
+                                                    name={step.done ? 'check' : step.icon}
+                                                    size={16}
+                                                    color={step.done ? '#fff' : '#9CA3AF'}
+                                                />
+                                            </View>
+                                            <Text style={[s.stepLbl, step.done && s.stepLblDone]}>{step.label}</Text>
+                                        </View>
+                                        {i < 2 && <View style={[s.stepLine, step.done && s.stepLineDone]} />}
+                                    </React.Fragment>
+                                ))}
+                            </View>
+                        )}
+
+                        {/* Customer info */}
+                        <View style={s.clientRow}>
+                            <View style={s.avatar}>
+                                <Text style={s.avatarTxt}>{(order.customer_name || '?').substring(0, 2).toUpperCase()}</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={s.clientNameFull}>{order.customer_name || '—'}</Text>
+                                <Text style={s.phone}>{order.customer_phone || '—'}</Text>
+                            </View>
+                            <TouchableOpacity style={s.callBtn} onPress={() => order.customer_phone && Linking.openURL(`tel:${order.customer_phone}`)}>
+                                <MaterialCommunityIcons name="phone" size={20} color={theme.colors.primary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Address */}
+                        {order.pickup_address ? (
+                            <View style={s.addrCard}>
+                                <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.primary} />
+                                <Text style={s.addrTxt} numberOfLines={2}>{order.pickup_address}</Text>
+                            </View>
+                        ) : null}
+
+                        {/* Action cards */}
+                        <View style={s.cards}>
+                            {/* Show QR */}
+                            <TouchableOpacity style={s.card} onPress={() => setShowQR(true)}>
+                                <View style={[s.cardIcon, { backgroundColor: '#DBEAFE' }]}>
+                                    <MaterialCommunityIcons name="qrcode" size={24} color="#2563EB" />
+                                </View>
+                                <Text style={s.cardLbl}>Montrer QR</Text>
+                            </TouchableOpacity>
+
+                            {/* Scan QR */}
+                            <TouchableOpacity
+                                style={[s.card, isVerified && s.cardDone]}
+                                onPress={() => navigation.navigate('ScanQR', {
+                                    orderId,
+                                    onScan: (data) => {
+                                        setIsVerified(true);
+                                        Alert.alert('QR Vérifié ✓', `Commande #${data.num || data.order_number || ''} confirmée.`);
+                                    },
+                                })}
+                            >
+                                <View style={[s.cardIcon, { backgroundColor: isVerified ? '#D1FAE5' : '#DCFCE7' }]}>
+                                    <MaterialCommunityIcons name={isVerified ? 'check-decagram' : 'qrcode-scan'} size={24} color={isVerified ? '#059669' : '#16A34A'} />
+                                </View>
+                                <Text style={[s.cardLbl, isVerified && { color: '#059669' }]}>{isVerified ? 'Vérifié ✓' : 'Scanner QR'}</Text>
+                            </TouchableOpacity>
+
+                            {/* Signature */}
+                            <TouchableOpacity
+                                style={[s.card, signature && s.cardDone]}
+                                onPress={() => setShowSignaturePad(true)}
+                            >
+                                <View style={[s.cardIcon, { backgroundColor: signature ? '#D1FAE5' : '#FEF9C3' }]}>
+                                    <MaterialCommunityIcons name={signature ? 'check-circle' : 'draw'} size={24} color={signature ? '#059669' : '#CA8A04'} />
+                                </View>
+                                <Text style={[s.cardLbl, signature && { color: '#059669' }]}>{signature ? 'Signé ✓' : 'Signature'}</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Item count */}
+                        <View style={s.sec}>
+                            <Text style={s.secTitle}>Articles collectés</Text>
+                            <View style={s.counter}>
+                                <TouchableOpacity style={s.cntBtn} onPress={() => setItemCount(v => Math.max(0, parseInt(v || 0) - 1).toString())}>
+                                    <MaterialCommunityIcons name="minus" size={20} color={theme.colors.primary} />
+                                </TouchableOpacity>
+                                <View style={{ alignItems: 'center', minWidth: 70 }}>
+                                    <TextInput
+                                        style={s.cntInput}
+                                        value={itemCount}
+                                        onChangeText={setItemCount}
+                                        keyboardType="number-pad"
+                                        placeholder="0"
+                                        placeholderTextColor="#D1D5DB"
+                                    />
+                                    <Text style={s.cntUnit}>articles</Text>
+                                </View>
+                                <TouchableOpacity style={s.cntBtn} onPress={() => setItemCount(v => (parseInt(v || 0) + 1).toString())}>
+                                    <MaterialCommunityIcons name="plus" size={20} color={theme.colors.primary} />
+                                </TouchableOpacity>
+                            </View>
+                            {itemCount && order.confirmed_item_count && parseInt(itemCount, 10) !== parseInt(order.confirmed_item_count, 10) && (
+                                <View style={s.warn}>
+                                    <MaterialCommunityIcons name="alert" size={14} color="#D97706" />
+                                    <Text style={s.warnTxt}>Attendu : {order.confirmed_item_count} articles</Text>
+                                </View>
+                            )}
+                        </View>
+
+                        {/* Notes */}
+                        <View style={s.sec}>
+                            <Text style={s.secTitle}>Notes (optionnel)</Text>
+                            <TextInput
+                                style={s.notesInput}
+                                value={notes}
+                                onChangeText={setNotes}
+                                placeholder="État des vêtements, observations..."
+                                placeholderTextColor="#9CA3AF"
+                                multiline
+                                numberOfLines={3}
+                            />
+                        </View>
+
+                        {/* Photos */}
+                        <View style={s.sec}>
+                            <Text style={s.secTitle}>Photos des articles</Text>
+                            <PhotoCapture photos={photos} onPhotosChange={setPhotos} maxPhotos={5} />
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+
+                {/* Footer confirm button */}
+                {isArrived && (
+                    <View style={s.footer}>
+                        <TouchableOpacity
+                            style={[s.confirmBtn, !canConfirm && s.confirmBtnOff]}
+                            onPress={handleSubmit}
+                            disabled={submitting || !canConfirm}
+                        >
+                            {submitting
+                                ? <ActivityIndicator color="#fff" />
+                                : <>
+                                    <MaterialCommunityIcons name="check-circle" size={19} color="#fff" style={{ marginRight: 7 }} />
+                                    <Text style={s.confirmBtnTxt}>Confirmer la collecte</Text>
+                                  </>
+                            }
+                        </TouchableOpacity>
+                        {!canConfirm && (
+                            <Text style={s.hint}>
+                                Manque : {!stepsOk.qr ? 'QR ' : ''}{!stepsOk.items ? 'Articles ' : ''}{!stepsOk.sig ? 'Signature' : ''}
+                            </Text>
+                        )}
+                    </View>
+                )}
             </Animated.View>
 
-            {/* Signature Pad Modal */}
             <SignaturePad
                 visible={showSignaturePad}
-                onSave={handleSaveSignature}
+                onSave={(d) => { setSignature(d); setShowSignaturePad(false); }}
                 onCancel={() => setShowSignaturePad(false)}
             />
-
-            {/* Order QR Receipt Modal */}
-            <OrderReceipt
-                visible={showQR}
-                order={order}
-                onClose={() => setShowQR(false)}
-            />
+            <OrderReceipt visible={showQR} order={order} onClose={() => setShowQR(false)} />
         </View>
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
+const s = StyleSheet.create({
+    container: { flex: 1 },
+    center:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+    // ETA / arrived pill
+    etaPill: {
+        position: 'absolute', top: 130, alignSelf: 'center',
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: 'rgba(15,15,15,0.82)',
+        paddingVertical: 8, paddingHorizontal: 16, borderRadius: 30,
+        zIndex: 20, elevation: 8,
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+    etaTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+    etaDiv: { width: 1, height: 14, backgroundColor: 'rgba(255,255,255,0.35)' },
+
+    // Top controls
+    topRow: {
+        position: 'absolute', top: 56, left: 16, right: 16,
+        flexDirection: 'row', justifyContent: 'space-between', zIndex: 10,
     },
-    markerContainer: {
+    circleBtn: {
+        width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff',
+        justifyContent: 'center', alignItems: 'center',
+        elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4,
+    },
+    navBtn: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
         backgroundColor: theme.colors.primary,
-        padding: 8,
-        borderRadius: 20,
-        borderWidth: 2,
-        borderColor: '#fff',
+        paddingHorizontal: 16, height: 44, borderRadius: 22,
+        elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4,
     },
-    topOverlay: {
-        position: 'absolute',
-        top: 80, // Increased to avoid battery/status bar overlap
-        left: 20,
-        right: 20,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        zIndex: 10,
-    },
-    iconButton: {
-        width: 45,
-        height: 45,
+    navBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+    // Bottom sheet — overflow:hidden clips rounded corners; ScrollView still works with nestedScrollEnabled
+    sheet: {
+        position: 'absolute', bottom: 0, left: 0, right: 0,
         backgroundColor: '#fff',
-        borderRadius: 25,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 5,
-    },
-    navigateButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: theme.colors.primary,
-        paddingHorizontal: 20,
-        height: 45,
-        borderRadius: 25,
-        gap: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 5,
-    },
-    navigateText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
-    bottomSheet: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -5 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 20,
+        borderTopLeftRadius: 26, borderTopRightRadius: 26,
         overflow: 'hidden',
+        elevation: 22,
+        shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.12, shadowRadius: 10,
     },
-    sheetHeader: {
-        paddingTop: 10,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
+    handleWrap: { paddingVertical: 10, alignItems: 'center' },
+    handleBar:  { width: 36, height: 4, backgroundColor: '#D1D5DB', borderRadius: 2 },
+
+    sheetHead: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 18, paddingBottom: 10,
     },
-    handleIndicator: {
-        width: 40,
-        height: 5,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 3,
-        alignSelf: 'center',
-        marginBottom: 15,
+    clientName: { fontSize: 16, fontWeight: '800', color: theme.colors.text },
+    orderRef:   { fontSize: 12, color: theme.colors.textSecondary, marginTop: 1 },
+    badge: {
+        backgroundColor: '#111', paddingHorizontal: 10, paddingVertical: 4,
+        borderRadius: 8, marginLeft: 8,
     },
-    headerContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-        marginBottom: 4,
-    },
-    headerAddress: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-        width: '90%',
-    },
-    sheetContent: {
-        flex: 1,
-        padding: 20,
-    },
-    section: {
-        marginBottom: 25,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-        marginBottom: 15,
-    },
-    customerRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    customerAvatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: theme.colors.primary + '15',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 15,
-    },
-    customerInitials: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: theme.colors.primary,
-    },
-    customerInfo: {
-        flex: 1,
-    },
-    customerName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-        marginBottom: 2,
-    },
-    customerPhone: {
-        fontSize: 14,
-        color: theme.colors.primary,
-        fontWeight: '600',
-    },
-    callButton: {
-        width: 45,
-        height: 45,
-        borderRadius: 23,
-        backgroundColor: theme.colors.surface,
-        borderWidth: 1,
-        borderColor: '#eee',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    actionGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 25,
-        gap: 15,
-    },
-    actionCard: {
-        flex: 1,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 15,
-        padding: 15,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#eee',
-    },
-    actionIcon: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    actionLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: theme.colors.text,
-    },
-    countContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 20,
-        backgroundColor: '#f8f9fa',
-        padding: 20,
-        borderRadius: 15,
-        borderWidth: 1,
-        borderColor: '#eee',
-    },
-    countButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#fff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        elevation: 1,
-    },
-    countDisplay: {
-        alignItems: 'center',
-        minWidth: 80,
-    },
-    countInput: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-        textAlign: 'center',
-        padding: 0,
-    },
-    countLabel: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-        textTransform: 'uppercase',
-        marginTop: 4,
-    },
-    warningBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: theme.colors.warning + '15',
-        padding: 10,
-        borderRadius: 10,
-        marginTop: 10,
-        gap: 8,
-    },
-    warningText: {
-        color: theme.colors.warning,
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    sheetFooter: {
-        padding: 20,
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
-        backgroundColor: '#fff',
-    },
-    submitButton: {
-        backgroundColor: theme.colors.primary,
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    submitButtonDisabled: {
-        opacity: 0.6,
-    },
-    submitButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        letterSpacing: 1,
-    },
-    // New Styles
-    routeInfoCard: {
-        position: 'absolute',
-        top: 110,
-        alignSelf: 'center',
-        backgroundColor: '#000',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 30,
-        elevation: 5,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        zIndex: 50,
-    },
-    routeStats: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 15,
-    },
-    statItem: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        gap: 4,
-    },
-    statValue: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    statLabel: {
-        color: '#ccc',
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    divider: {
-        width: 1,
-        height: 20,
-        backgroundColor: '#444',
-    },
-    statusBadge: {
-        backgroundColor: '#000',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    statusText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-    orderNumber: {
-        color: theme.colors.textSecondary,
-        fontSize: 14,
-    },
+    badgeGreen: { backgroundColor: theme.colors.success },
+    badgeTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
+
     actionRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 15,
-        gap: 10,
+        flexDirection: 'row', paddingHorizontal: 18, paddingBottom: 12, gap: 10,
     },
-    primaryButton: {
-        flex: 1,
-        flexDirection: 'row',
-        backgroundColor: theme.colors.primary,
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        elevation: 2,
+    mainBtn: {
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        paddingVertical: 13, borderRadius: 14, elevation: 2,
     },
-    primaryButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
+    mainBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
+    mapIcon: {
+        width: 48, height: 48, borderRadius: 12,
+        backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center',
+        borderWidth: 1, borderColor: '#E5E7EB',
     },
-    mapButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: '#f0f0f0',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#ddd',
+
+    scrollPad: { paddingHorizontal: 18, paddingBottom: 120, paddingTop: 4 },
+
+    // Steps
+    steps: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        paddingVertical: 14, marginBottom: 10,
     },
+    step:  { alignItems: 'center', gap: 4 },
+    stepCircle: {
+        width: 34, height: 34, borderRadius: 17,
+        backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center',
+        borderWidth: 2, borderColor: '#E5E7EB',
+    },
+    stepCircleDone: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
+    stepLbl:     { fontSize: 11, color: '#6B7280', fontWeight: '600' },
+    stepLblDone: { color: theme.colors.success },
+    stepLine:     { width: 38, height: 2, backgroundColor: '#E5E7EB', marginHorizontal: 4, marginBottom: 18 },
+    stepLineDone: { backgroundColor: theme.colors.success },
+
+    // Customer row
+    clientRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+    avatar:    {
+        width: 42, height: 42, borderRadius: 21,
+        backgroundColor: theme.colors.primary + '18', justifyContent: 'center', alignItems: 'center', marginRight: 10,
+    },
+    avatarTxt:     { fontSize: 15, fontWeight: '800', color: theme.colors.primary },
+    clientNameFull: { fontSize: 14, fontWeight: '700', color: theme.colors.text },
+    phone:          { fontSize: 13, color: theme.colors.primary, fontWeight: '600', marginTop: 1 },
+    callBtn:        {
+        width: 40, height: 40, borderRadius: 20,
+        backgroundColor: theme.colors.primary + '12', justifyContent: 'center', alignItems: 'center',
+    },
+
+    // Address
+    addrCard: {
+        flexDirection: 'row', alignItems: 'flex-start', gap: 7,
+        backgroundColor: '#F9FAFB', borderRadius: 10, padding: 10, marginBottom: 12,
+        borderWidth: 1, borderColor: '#E5E7EB',
+    },
+    addrTxt: { flex: 1, fontSize: 13, color: theme.colors.text, lineHeight: 19 },
+
+    // Action cards
+    cards: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+    card: {
+        flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 10,
+        alignItems: 'center', borderWidth: 2, borderColor: '#E5E7EB',
+    },
+    cardDone: { borderColor: '#059669', backgroundColor: '#F0FDF4' },
+    cardIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 5 },
+    cardLbl:  { fontSize: 11, fontWeight: '700', color: theme.colors.text, textAlign: 'center' },
+
+    // Counter
+    sec:     { marginBottom: 16 },
+    secTitle: { fontSize: 13, fontWeight: '700', color: theme.colors.text, marginBottom: 8 },
+    counter: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18,
+        backgroundColor: '#F9FAFB', borderRadius: 12, padding: 14,
+        borderWidth: 1, borderColor: '#E5E7EB',
+    },
+    cntBtn: {
+        width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff',
+        justifyContent: 'center', alignItems: 'center',
+        borderWidth: 1, borderColor: '#E5E7EB', elevation: 1,
+    },
+    cntInput: { fontSize: 28, fontWeight: '800', color: theme.colors.text, textAlign: 'center', padding: 0, minWidth: 50 },
+    cntUnit:  { fontSize: 11, color: '#6B7280', textTransform: 'uppercase', fontWeight: '600', marginTop: 1 },
+
+    warn: {
+        flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7,
+        backgroundColor: '#FEF3C7', borderRadius: 7, paddingHorizontal: 10, paddingVertical: 6,
+    },
+    warnTxt: { fontSize: 12, color: '#92400E', fontWeight: '600' },
+
+    notesInput: {
+        backgroundColor: '#F9FAFB', borderRadius: 10, padding: 10,
+        fontSize: 13, color: theme.colors.text, borderWidth: 1, borderColor: '#E5E7EB',
+        minHeight: 65, textAlignVertical: 'top',
+    },
+
+    // Footer
+    footer: { padding: 14, paddingBottom: 20, borderTopWidth: 1, borderTopColor: '#F0F0F0' },
+    confirmBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: theme.colors.success, paddingVertical: 14, borderRadius: 14,
+    },
+    confirmBtnOff: { backgroundColor: '#9CA3AF' },
+    confirmBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
+    hint: { textAlign: 'center', fontSize: 11, color: '#6B7280', marginTop: 6 },
 });
 
 export default PickupOrderScreen;

@@ -3,9 +3,23 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Expo config plugin to allow cleartext HTTP to API server (161.97.66.69)
- * Required for Android 9+ which blocks HTTP by default
+ * Expo config plugin to allow cleartext HTTP to specific hosts.
+ * Required because Android 9+ blocks HTTP by default and our backend uses
+ * plain HTTP (Coolify reverse proxy on port 80, no TLS yet).
+ *
+ * Allowlist:
+ *   - 161.97.66.69         production backend
+ *   - localhost / 10.0.2.2  local backend from emulator
+ *   - LAN_DEV_HOSTS         developer machines on Wi-Fi (Expo dev client / sideloaded APK)
+ *
+ * To add your dev machine, append its LAN IP to LAN_DEV_HOSTS below. This file
+ * runs at prebuild time, so changes require an `expo prebuild` / new build to
+ * take effect. (Expo Go ignores this file — it uses its own manifest.)
  */
+const LAN_DEV_HOSTS = [
+    '192.168.1.76',   // current dev machine
+];
+
 function withNetworkSecurityConfig(config) {
     // 1. Add networkSecurityConfig reference to AndroidManifest
     config = withAndroidManifest(config, (config) => {
@@ -31,12 +45,14 @@ function withNetworkSecurityConfig(config) {
             );
             fs.mkdirSync(xmlDir, { recursive: true });
             const xmlPath = path.join(xmlDir, 'network_security_config.xml');
+            const allHosts = ['161.97.66.69', 'localhost', '10.0.2.2', ...LAN_DEV_HOSTS];
+            const domainLines = allHosts
+                .map(h => `        <domain includeSubdomains="true">${h}</domain>`)
+                .join('\n');
             const xml = `<?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">161.97.66.69</domain>
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">10.0.2.2</domain>
+${domainLines}
     </domain-config>
 </network-security-config>`;
             fs.writeFileSync(xmlPath, xml);

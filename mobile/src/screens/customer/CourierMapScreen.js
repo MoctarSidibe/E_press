@@ -22,16 +22,25 @@ const CourierMapScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [followUser, setFollowUser] = useState(true);
 
+    // Hold the location watcher subscription so we can cancel it on unmount.
+    // The previous code fired watchPositionAsync without storing the return
+    // value, leaving the GPS subscription alive forever — major battery drain.
+    const locationSubRef = useRef(null);
+
     useEffect(() => {
-        requestLocationPermission();
-        setupSocketListeners();
+        let mockTimer = null;
+
+        requestLocationPermission(sub => { locationSubRef.current = sub; });
+        mockTimer = setupSocketListeners();
 
         return () => {
             socketService.removeAllListeners();
+            if (locationSubRef.current?.remove) locationSubRef.current.remove();
+            if (mockTimer) clearTimeout(mockTimer);
         };
     }, []);
 
-    const requestLocationPermission = async () => {
+    const requestLocationPermission = async (onSubscription) => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
 
@@ -48,7 +57,6 @@ const CourierMapScreen = ({ navigation }) => {
                 return;
             }
 
-            // Get current location
             const currentLocation = await Location.getCurrentPositionAsync({
                 accuracy: Location.Accuracy.Balanced
             });
@@ -62,12 +70,13 @@ const CourierMapScreen = ({ navigation }) => {
 
             setLoading(false);
 
-            // Watch location updates
-            Location.watchPositionAsync(
+            // Start watching. Subscription handed up to the parent so the
+            // useEffect cleanup can cancel it on unmount.
+            const sub = await Location.watchPositionAsync(
                 {
                     accuracy: Location.Accuracy.Balanced,
-                    timeInterval: 10000, // Update every 10 seconds
-                    distanceInterval: 50, // Or when moved 50 meters
+                    timeInterval: 10000,   // every 10s
+                    distanceInterval: 50,  // or every 50m
                 },
                 (newLocation) => {
                     const newCoords = {
@@ -76,30 +85,24 @@ const CourierMapScreen = ({ navigation }) => {
                         latitudeDelta: 0.02,
                         longitudeDelta: 0.02,
                     };
-
                     setLocation(newCoords);
-
                     if (followUser && mapRef.current) {
                         mapRef.current.animateToRegion(newCoords, 1000);
                     }
                 }
             );
+            onSubscription?.(sub);
         } catch (error) {
-            Alert.alert(t('common.error'), t('errors.generic'));
+            console.warn('[CourierMap] location error:', error.message);
             setLoading(false);
         }
     };
 
     const setupSocketListeners = () => {
-        // Listen for courier location updates
-        // This would need backend to broadcast courier locations
-        // For now, we'll simulate it
-
-        // In production, backend would emit:
-        // io.emit('couriers:locations', [...courierLocations])
-
-        // Mock data for demo
-        setTimeout(() => {
+        // Mock courier data — real production code would subscribe to
+        // 'couriers:locations' from the socket. Returned timer ref so unmount
+        // can clear it before it fires on a dead component.
+        return setTimeout(() => {
             setAvailableCouriers([
                 {
                     id: '1',

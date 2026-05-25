@@ -61,7 +61,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
             setOrder(response.data);
         } catch (error) {
             console.error('Failed to load order:', error);
-            Alert.alert('Error', 'Failed to load order details');
+            Alert.alert('Erreur', 'Impossible de charger les détails de la commande');
             navigation.goBack();
         } finally {
             setLoading(false);
@@ -80,24 +80,24 @@ const OrderDetailsScreen = ({ navigation, route }) => {
 
     const handleCancelOrder = () => {
         Alert.alert(
-            'Cancel Order',
-            'Are you sure you want to cancel this order? This action cannot be undone.',
+            'Annuler la commande',
+            'Êtes-vous sûr de vouloir annuler cette commande ? Cette action est irréversible.',
             [
-                { text: 'No', style: 'cancel' },
+                { text: 'Non', style: 'cancel' },
                 {
-                    text: 'Yes, Cancel',
+                    text: 'Oui, annuler',
                     style: 'destructive',
                     onPress: async () => {
                         try {
                             await ordersAPI.cancel(order.id);
                             Alert.alert(
-                                'Order Cancelled',
-                                'Your order has been cancelled successfully.',
+                                'Commande annulée',
+                                'Votre commande a été annulée avec succès.',
                                 [{ text: 'OK', onPress: () => navigation.goBack() }]
                             );
                         } catch (error) {
                             console.error('Failed to cancel order:', error);
-                            Alert.alert('Error', error.response?.data?.error || 'Failed to cancel order');
+                            Alert.alert('Erreur', error.response?.data?.error || 'Impossible d\'annuler la commande');
                         }
                     }
                 }
@@ -118,7 +118,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
             <View style={styles.centerContainer}>
                 <StatusBar style="dark" />
                 <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>Loading order details...</Text>
+                <Text style={styles.loadingText}>Chargement de la commande...</Text>
             </View>
         );
     }
@@ -134,7 +134,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Order Details</Text>
+                <Text style={styles.headerTitle}>Détails de la commande</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -147,7 +147,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                             size={160}
                         />
                     </View>
-                    <Text style={styles.qrLabel}>Scan for Order Tracking</Text>
+                    <Text style={styles.qrLabel}>Scanner pour suivre la commande</Text>
                 </View>
 
                 {/* Order Info Card */}
@@ -167,7 +167,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>
                         <MaterialCommunityIcons name="package-variant" size={20} color={theme.colors.text} />
-                        {' '}Items ({order.items?.length || order.confirmed_item_count || 0})
+                        {' '}Articles ({order.items?.length || order.confirmed_item_count || 0})
                     </Text>
                     {order.items?.map((item, index) => (
                         <View key={index} style={styles.itemRow}>
@@ -187,25 +187,41 @@ const OrderDetailsScreen = ({ navigation, route }) => {
 
                 {/* Pricing Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Pricing</Text>
+                    <Text style={styles.sectionTitle}>Tarification</Text>
                     <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Subtotal</Text>
+                        <Text style={styles.priceLabel}>Sous-total</Text>
                         <Text style={styles.priceValue}>{(parseFloat(order.subtotal || 0) * 100).toFixed(0)} Fcfa</Text>
                     </View>
                     <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Delivery Fee</Text>
+                        <Text style={styles.priceLabel}>Frais de livraison</Text>
                         <Text style={styles.priceValue}>{(parseFloat(order.delivery_fee || 0) * 100).toFixed(0)} Fcfa</Text>
                     </View>
                     {parseFloat(order.express_fee) > 0 && (
                         <View style={styles.priceRow}>
-                            <Text style={styles.priceLabel}>Express Fee</Text>
+                            <Text style={styles.priceLabel}>Supplément Express</Text>
                             <Text style={styles.priceValue}>{(parseFloat(order.express_fee) * 100).toFixed(0)} Fcfa</Text>
                         </View>
                     )}
-                    <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Tax (10%)</Text>
-                        <Text style={styles.priceValue}>{(parseFloat(order.tax || 0) * 100).toFixed(0)} Fcfa</Text>
-                    </View>
+                    {parseFloat(order.coupon_discount) > 0 && (
+                        <View style={styles.priceRow}>
+                            <Text style={[styles.priceLabel, { color: '#00b894' }]}>
+                                Coupon {order.coupon_code ? `(${order.coupon_code})` : ''}
+                            </Text>
+                            <Text style={[styles.priceValue, { color: '#00b894' }]}>
+                                -{(parseFloat(order.coupon_discount) * 100).toFixed(0)} Fcfa
+                            </Text>
+                        </View>
+                    )}
+                    {parseFloat(order.points_discount) > 0 && (
+                        <View style={styles.priceRow}>
+                            <Text style={[styles.priceLabel, { color: '#FFD700' }]}>
+                                Points ({order.points_redeemed} pts)
+                            </Text>
+                            <Text style={[styles.priceValue, { color: '#FFD700' }]}>
+                                -{(parseFloat(order.points_discount) * 100).toFixed(0)} Fcfa
+                            </Text>
+                        </View>
+                    )}
                     <View style={[styles.priceRow, styles.totalRow]}>
                         <Text style={styles.totalLabel}>Total</Text>
                         <Text style={styles.totalValue}>{(parseFloat(order.total || 0) * 100).toFixed(0)} Fcfa</Text>
@@ -214,19 +230,19 @@ const OrderDetailsScreen = ({ navigation, route }) => {
 
                 {/* Addresses Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Addresses</Text>
+                    <Text style={styles.sectionTitle}>Adresses</Text>
                     <View style={styles.addressRow}>
                         <MaterialCommunityIcons name="map-marker-up" size={20} color={theme.colors.primary} />
                         <View style={styles.addressInfo}>
-                            <Text style={styles.addressLabel}>Pickup</Text>
-                            <Text style={styles.addressValue}>{order.pickup_address || 'Not specified'}</Text>
+                            <Text style={styles.addressLabel}>Collecte</Text>
+                            <Text style={styles.addressValue}>{order.pickup_address || 'Non spécifié'}</Text>
                         </View>
                     </View>
                     <View style={styles.addressRow}>
                         <MaterialCommunityIcons name="map-marker-down" size={20} color={theme.colors.success} />
                         <View style={styles.addressInfo}>
-                            <Text style={styles.addressLabel}>Delivery</Text>
-                            <Text style={styles.addressValue}>{order.delivery_address || 'Not specified'}</Text>
+                            <Text style={styles.addressLabel}>Livraison</Text>
+                            <Text style={styles.addressValue}>{order.delivery_address || 'Non spécifié'}</Text>
                         </View>
                     </View>
                 </View>
@@ -236,20 +252,20 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>
                             <MaterialCommunityIcons name="truck-delivery" size={20} color={theme.colors.text} />
-                            {' '}Your Courier
+                            {' '}Votre livreur
                         </Text>
                         <View style={[styles.card, { backgroundColor: theme.colors.primary + '10', borderLeftWidth: 4, borderLeftColor: theme.colors.primary }]}>
                             {order.pickup_driver_name && (
                                 <View style={styles.courierRow}>
                                     <MaterialCommunityIcons name="account-circle" size={24} color={theme.colors.primary} />
                                     <View style={{ marginLeft: 12, flex: 1 }}>
-                                        <Text style={{ fontSize: 12, color: theme.colors.textLight }}>Pickup Courier</Text>
+                                        <Text style={{ fontSize: 12, color: theme.colors.textLight }}>Livreur (collecte)</Text>
                                         <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text }}>
                                             {order.pickup_driver_name}
                                         </Text>
                                     </View>
                                     <View style={{ backgroundColor: theme.colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                                        <Text style={{ color: 'white', fontSize: 11, fontWeight: '600' }}>ASSIGNED</Text>
+                                        <Text style={{ color: 'white', fontSize: 11, fontWeight: '600' }}>ASSIGNÉ</Text>
                                     </View>
                                 </View>
                             )}
@@ -257,13 +273,13 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                                 <View style={[styles.courierRow, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
                                     <MaterialCommunityIcons name="account-circle" size={24} color={theme.colors.success} />
                                     <View style={{ marginLeft: 12, flex: 1 }}>
-                                        <Text style={{ fontSize: 12, color: theme.colors.textLight }}>Delivery Courier</Text>
+                                        <Text style={{ fontSize: 12, color: theme.colors.textLight }}>Livreur (livraison)</Text>
                                         <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text }}>
                                             {order.delivery_driver_name}
                                         </Text>
                                     </View>
                                     <View style={{ backgroundColor: theme.colors.success, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                                        <Text style={{ color: 'white', fontSize: 11, fontWeight: '600' }}>ASSIGNED</Text>
+                                        <Text style={{ color: 'white', fontSize: 11, fontWeight: '600' }}>ASSIGNÉ</Text>
                                     </View>
                                 </View>
                             )}
@@ -271,7 +287,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                                 <View style={styles.courierRow}>
                                     <MaterialCommunityIcons name="truck-fast" size={24} color={theme.colors.warning} />
                                     <Text style={{ marginLeft: 12, color: theme.colors.textLight, fontStyle: 'italic' }}>
-                                        Courier being assigned...
+                                        Assignation d'un livreur en cours...
                                     </Text>
                                 </View>
                             )}
@@ -280,22 +296,22 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                 )}
                 {/* Payment & Schedule */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Details</Text>
+                    <Text style={styles.sectionTitle}>Détails</Text>
                     <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Payment Method</Text>
+                        <Text style={styles.detailLabel}>Mode de paiement</Text>
                         <Text style={styles.detailValue}>
                             {(order.payment_method || 'cash').replace('_', ' ').toUpperCase()}
                         </Text>
                     </View>
                     <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Pickup Type</Text>
+                        <Text style={styles.detailLabel}>Type de collecte</Text>
                         <Text style={styles.detailValue}>
-                            {order.pickup_scheduled_at ? 'Scheduled' : 'Immediate'}
+                            {order.pickup_scheduled_at ? 'Planifiée' : 'Immédiate'}
                         </Text>
                     </View>
                     {order.order_comment && (
                         <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Special Instructions</Text>
+                            <Text style={styles.detailLabel}>Instructions spéciales</Text>
                             <Text style={styles.detailValue}>{order.order_comment}</Text>
                         </View>
                     )}
@@ -314,7 +330,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                     ) : (
                         <>
                             <MaterialCommunityIcons name="download" size={18} color="#fff" />
-                            <Text style={styles.actionButtonText}>Receipt</Text>
+                            <Text style={styles.actionButtonText}>Reçu</Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -326,7 +342,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                         onPress={handleTrackDelivery}
                     >
                         <MaterialCommunityIcons name="map-marker-path" size={18} color="#fff" />
-                        <Text style={styles.actionButtonText}>Track</Text>
+                        <Text style={styles.actionButtonText}>Suivre</Text>
                     </TouchableOpacity>
                 )}
 
@@ -337,7 +353,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                         onPress={handleCancelOrder}
                     >
                         <MaterialCommunityIcons name="close-circle" size={18} color="#fff" />
-                        <Text style={styles.actionButtonText}>Cancel</Text>
+                        <Text style={styles.actionButtonText}>Annuler</Text>
                     </TouchableOpacity>
                 )}
             </View>

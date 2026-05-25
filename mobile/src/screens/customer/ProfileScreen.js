@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
+import { displayIdentity } from '../../utils/userIdentity';
 import theme from '../../theme/theme';
 
 const ProfileScreen = () => {
     const { user, logout } = useAuth();
     const { t } = useTranslation();
+    const navigation = useNavigation();
     const [languageModalVisible, setLanguageModalVisible] = useState(false);
 
     return (
@@ -18,17 +21,27 @@ const ProfileScreen = () => {
                     <MaterialCommunityIcons name="account" size={48} color={theme.colors.primary} />
                 </View>
                 <Text style={styles.name}>{user?.fullName || 'User'}</Text>
-                <Text style={styles.email}>{user?.email}</Text>
+                <Text style={styles.email}>{displayIdentity(user)}</Text>
                 <Text style={styles.role}>{user?.role?.toUpperCase()}</Text>
             </View>
 
             <View style={styles.options}>
-                <TouchableOpacity 
-                    style={styles.optionButton} 
+                <TouchableOpacity
+                    style={styles.optionButton}
+                    onPress={() => navigation.navigate('Addresses')}
+                >
+                    <MaterialCommunityIcons name="map-marker-multiple" size={20} color={theme.colors.text} />
+                    <Text style={styles.optionText}>{t('addresses.title')}</Text>
+                    <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.textTertiary} style={{ marginLeft: 'auto' }} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.optionButton}
                     onPress={() => setLanguageModalVisible(true)}
                 >
                     <MaterialCommunityIcons name="translate" size={20} color={theme.colors.text} />
                     <Text style={styles.optionText}>{t('customer.profile.language')}</Text>
+                    <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.textTertiary} style={{ marginLeft: 'auto' }} />
                 </TouchableOpacity>
             </View>
 

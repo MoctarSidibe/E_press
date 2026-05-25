@@ -50,21 +50,76 @@
       "title": "Create Account",
       "subtitle": "Join E-Press Laundry today",
       "fullName": "Full Name",
+      "fullNamePlaceholder": "John Smith",
       "email": "Email",
+      "emailOptional": "Email (optional)",
+      "emailPlaceholder": "you@email.com",
       "phone": "Phone Number",
+      "phoneHelper": "8 digits after +241",
+      "phonePlaceholder": "77 12 34 56",
       "password": "Password",
+      "passwordPlaceholder": "Min. 6 characters",
       "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Retype password",
       "role": "I am a:",
       "customer": "Customer",
       "driver": "Driver",
-      "cleaner": "Cleaner",
-      "createAccount": "Create Account",
+      "cleaner": "Laundry",
+      "createAccount": "Create my account",
       "hasAccount": "Already have an account?",
       "signIn": "Sign In",
+      "next": "Next",
+      "back": "Back",
+      "steps": {
+        "identity": "Your info",
+        "security": "Security",
+        "confirm": "Finalize",
+        "stepOf": "Step {{current}} of {{total}}"
+      },
+      "summary": {
+        "title": "Summary",
+        "name": "Name",
+        "phone": "Phone",
+        "email": "Email",
+        "noEmail": "Not provided",
+        "role": "Account"
+      },
+      "roleBadge": {
+        "customer": {
+          "title": "Customer Account",
+          "tagline": "Get your clothes washed in one tap",
+          "perk1": "Pickup & delivery at home",
+          "perk2": "Loyalty points & coupons"
+        },
+        "driver": {
+          "title": "Driver Account",
+          "tagline": "Deliver orders near you",
+          "perk1": "Pick the trips you want",
+          "perk2": "Pay on delivery"
+        },
+        "cleaner": {
+          "title": "Laundry Account",
+          "tagline": "Manage your E-Press partner laundry",
+          "perk1": "Receive assigned orders",
+          "perk2": "Payment tracking"
+        }
+      },
+      "legal": {
+        "accept": "I have read and accept the ",
+        "privacy": "Privacy Policy",
+        "and": " and the ",
+        "terms": "Terms of Use",
+        "suffix": " of E-Press"
+      },
       "errors": {
         "fillAll": "Please fill in all fields",
+        "nameRequired": "Full name is required",
+        "phoneRequired": "Phone number is required",
+        "phoneInvalid": "Invalid number (8 digits required)",
+        "emailInvalid": "Invalid email address",
         "passwordLength": "Password must be at least 6 characters",
         "passwordMatch": "Passwords do not match",
+        "legalRequired": "You must accept the terms to continue",
         "failed": "Registration failed"
       }
     }
@@ -347,7 +402,15 @@
       "received": "Order received at facility!",
       "confirmFailed": "Failed to confirm reception",
       "receivedOrders": "Received Orders",
-      "noOrders": "No orders received"
+      "noOrders": "No orders received",
+      "incomingTitle": "Incoming orders",
+      "incomingEmpty": "No orders en route to your laundry.",
+      "statusEnRoute": "En route",
+      "driver": "Driver",
+      "invalidOrder": "Invalid order",
+      "scanFirst": "Please scan an order first",
+      "enterCount": "Please enter the item count",
+      "received": "Order received successfully"
     },
     "ready": {
       "title": "Ready for Delivery",
@@ -455,6 +518,159 @@
     "myOrders": "My Orders",
     "reception": "Reception",
     "inProcess": "In Process",
-    "ready": "Ready"
+    "ready": "Ready",
+    "history": "History"
+  },
+  "points": {
+    "title": "My Points",
+    "currentBalance": "Current balance",
+    "unit": "points",
+    "types": {
+      "earned": "Points earned",
+      "redeemed": "Points redeemed",
+      "adjusted": "Adjustment",
+      "expired": "Points expired"
+    },
+    "empty": {
+      "title": "No transactions yet",
+      "subtitle": "Place an order to start earning points"
+    }
+  },
+  "kyc": {
+    "submit": {
+      "title": "Identity verification",
+      "subtitleDriver": "Required for E-Press drivers",
+      "subtitleCleaner": "Required for cleaning agents",
+      "infoBanner": "Your documents are handled securely and confidentially. Verification is completed within 24 hours.",
+      "progress": "{{done}} / {{total}} documents provided",
+      "documentAdded": "Document added",
+      "submitButton": "Submit for verification",
+      "docs": {
+        "nationalId": { "label": "ID card", "desc": "Front photo of your national ID" },
+        "selfie": { "label": "Selfie", "desc": "Hold your ID next to your face" },
+        "driverLicense": { "label": "Driver's license", "desc": "Photo of your valid driver's license" },
+        "vehiclePhoto": { "label": "Vehicle photo", "desc": "Photo of your motorbike or delivery vehicle" }
+      },
+      "permissions": {
+        "galleryDeniedTitle": "Permission denied",
+        "galleryDeniedMsg": "Gallery access is required to upload your documents.",
+        "pickSourceTitle": "Choose a source",
+        "pickSourceMsg": "How would you like to provide this document?",
+        "cameraOption": "Camera",
+        "galleryOption": "Gallery"
+      },
+      "errors": {
+        "missingDocsTitle": "Missing documents",
+        "missingDocsMsg": "Please provide all required documents (*).",
+        "submitErrorTitle": "Error",
+        "submitErrorDefault": "Upload failed. Check your connection."
+      }
+    },
+    "status": {
+      "pending": {
+        "title": "Verification in progress",
+        "subtitle": "Your documents were received. Our team is reviewing them.",
+        "stepSubmitted": "Documents submitted",
+        "stepVerifying": "Verification in progress",
+        "stepUnlocked": "Access enabled",
+        "infoBanner": "You'll get a notification as soon as your account is approved. Usually under 24 hours.",
+        "refreshButton": "Check my application status"
+      },
+      "rejected": {
+        "title": "Documents rejected",
+        "subtitle": "Your documents could not be validated. Please fix the issue and resubmit.",
+        "reasonLabel": "Rejection reason:",
+        "tipsTitle": "Tips for success:",
+        "tipReadable": "Make sure documents are readable and not blurry",
+        "tipVisible": "All information must be visible (no glare)",
+        "tipSelfie": "For the selfie, hold your ID clearly visible",
+        "tipValidity": "Documents must be valid (not expired)",
+        "resubmitButton": "Resubmit my documents"
+      },
+      "logoutButton": "Sign out"
+    },
+    "labels": {
+      "approved": "Identity verified",
+      "pending": "Verification in progress",
+      "rejected": "Documents rejected",
+      "notSubmitted": "KYC required"
+    }
+  },
+  "offlineOrder": {
+    "headerTitle": "Order saved",
+    "successTitle": "Order saved offline",
+    "successSubtitle": "Your order has been saved locally and will sync as soon as the connection is restored.",
+    "codeLabel": "Your order code",
+    "codeHint": "Show this code or the QR below to the driver",
+    "qrLabel": "Verification QR code",
+    "qrHint": "The driver will scan this QR to verify your order",
+    "infoBanner": "The order will sync automatically when internet is available. You will receive a confirmation notification.",
+    "shareButton": "Share the code",
+    "homeButton": "Back to home",
+    "shareTitle": "E-Press order",
+    "shareMessage": "My E-Press order (offline)\nCode: {{code}}\n\nThis code will be synced as soon as you're back online.",
+    "alert": {
+      "title": "📦 Order saved offline",
+      "message": "Your order was saved locally.\n\nCode: {{code}}\n\nIt will be sent automatically as soon as the connection is back.",
+      "viewQr": "View QR code",
+      "home": "Home"
+    }
+  },
+  "addresses": {
+    "title": "My addresses",
+    "subtitle": "Manage your pickup and delivery places",
+    "addButton": "Add an address",
+    "empty": {
+      "title": "No saved addresses",
+      "subtitle": "Add your first address to speed up future orders."
+    },
+    "defaultBadge": "Default",
+    "setDefault": "Set as default",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete this address?",
+    "deleteConfirmMsg": "This action cannot be undone.",
+    "form": {
+      "newTitle": "New address",
+      "editTitle": "Edit address",
+      "labelLabel": "Address name",
+      "labelPlaceholder": "e.g. Home, Office, Mom's place",
+      "addressLabel": "Full address",
+      "addressPlaceholder": "Street, neighborhood, city",
+      "locationLabel": "Location on the map",
+      "locationHelper": "Tap the map to drop the pin or use your GPS location.",
+      "useMyLocation": "Use my location",
+      "instructionsLabel": "Driver instructions (optional)",
+      "instructionsPlaceholder": "e.g. Ring the intercom, 2nd floor on the left…",
+      "defaultLabel": "Default address",
+      "defaultHelper": "Pre-selected on your next orders.",
+      "save": "Save",
+      "labelRequired": "Address name is required",
+      "addressRequired": "Address is required",
+      "locationRequired": "Please pick the location on the map",
+      "saveError": "Save failed. Check your connection.",
+      "loadError": "Could not load the address."
+    }
+  },
+  "laverieSetup": {
+    "title": "Set up your laundry",
+    "subtitle": "Fill in your laundry details to start receiving orders.",
+    "nameLabel": "Laundry name",
+    "namePlaceholder": "e.g. Downtown Pressing",
+    "addressLabel": "Address",
+    "addressPlaceholder": "Street, neighborhood, city",
+    "phoneLabel": "Phone",
+    "radiusLabel": "Radius (km)",
+    "locationLabel": "Location on the map",
+    "locationHelper": "Tap the map to place your laundry, or use your GPS location.",
+    "useMyLocation": "Use my location",
+    "submitButton": "Save my laundry",
+    "nameRequired": "Laundry name is required.",
+    "locationRequired": "Please pick the location on the map.",
+    "radiusInvalid": "Radius must be a number greater than 0.",
+    "locationDeniedTitle": "Permission denied",
+    "locationDeniedMsg": "Location access is required to locate your laundry.",
+    "locationError": "Could not get your location.",
+    "saveError": "Save failed. Check your connection."
   }
 }

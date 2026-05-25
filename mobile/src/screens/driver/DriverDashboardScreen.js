@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
+import { useAuth } from '../../context/AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,6 +20,7 @@ import theme from '../../theme/theme';
 
 const DriverDashboardScreen = ({ navigation }) => {
     const { t } = useTranslation();
+    const { user } = useAuth();
     const [availableOrders, setAvailableOrders] = useState([]);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -224,7 +226,24 @@ const DriverDashboardScreen = ({ navigation }) => {
 
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>{t('driver.dashboard.title')}</Text>
+                {/* Left: E-press brand */}
+                <View style={styles.headerBrand}>
+                    <View style={styles.headerLogoBox}>
+                        <MaterialCommunityIcons name="tshirt-crew" size={20} color="#fff" />
+                    </View>
+                    <Text style={styles.headerBrandText}>E-press</Text>
+                </View>
+
+                {/* Right: driver name + badge */}
+                <View style={styles.headerDriver}>
+                    <Text style={styles.headerDriverName} numberOfLines={1}>
+                        {user?.fullName || user?.full_name || 'Coursier'}
+                    </Text>
+                    <View style={styles.driverBadge}>
+                        <MaterialCommunityIcons name="motorbike" size={11} color="#fff" />
+                        <Text style={styles.driverBadgeTxt}>Driver</Text>
+                    </View>
+                </View>
             </View>
 
             {/* Stats Cards */}
@@ -319,15 +338,58 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: theme.colors.surface,
-        padding: theme.spacing.lg,
+        paddingHorizontal: theme.spacing.lg,
         paddingTop: theme.spacing.xl + 20,
+        paddingBottom: theme.spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: theme.colors.border,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
-    headerTitle: {
-        fontSize: theme.fonts.sizes.xxl,
+    headerBrand: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    headerLogoBox: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: theme.colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    headerBrandText: {
+        fontSize: theme.fonts.sizes.xl,
         fontWeight: theme.fonts.weights.bold,
         color: theme.colors.text,
+        letterSpacing: 0.5,
+    },
+    headerDriver: {
+        alignItems: 'flex-end',
+        gap: 4,
+    },
+    headerDriverName: {
+        fontSize: theme.fonts.sizes.sm,
+        fontWeight: theme.fonts.weights.bold,
+        color: theme.colors.text,
+        maxWidth: 150,
+    },
+    driverBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: theme.colors.primary,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 20,
+    },
+    driverBadgeTxt: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.5,
     },
     statsContainer: {
         flexDirection: 'row',

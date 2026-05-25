@@ -1,6 +1,8 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../services/api';
+import { APP_VARIANT } from '../config/variant';
+import notificationService from '../services/notification';
 
 const AuthContext = createContext();
 
@@ -28,31 +30,51 @@ export const AuthProvider = ({ children }) => {
 
     const loadUser = async () => {
         try {
-            console.log('[AuthContext] Loading stored user...');
-            const storedToken = await AsyncStorage.getItem('auth_token'); // Kept 'auth_token' for consistency with login/register
-            const storedUser = await AsyncStorage.getItem('user');
-
-            if (storedToken && storedUser) {
-                const parsedUser = JSON.parse(storedUser);
-                console.log('[AuthContext] User loaded from storage:', parsedUser.email, parsedUser.role);
-                setToken(storedToken);
-                setUser(parsedUser);
-            } else {
-                console.log('[AuthContext] No stored user found');
+            const storedToken = await AsyncStorage.getItem('auth_token');
+            if (!storedToken) {
+                // No token → land on Guest page
+                return;
             }
+
+            // Verify token is still valid and fetch fresh user data from server
+            const response = await authAPI.getMe();
+            const freshUser = response.data;
+
+            // Map snake_case server fields to camelCase
+            const normalizedUser = {
+                id:                  freshUser.id,
+                email:               freshUser.email,
+                fullName:            freshUser.fullName || freshUser.full_name,
+                phone:               freshUser.phone,
+                role:                freshUser.role,
+                avatarUrl:           freshUser.avatarUrl || freshUser.avatar_url,
+                cardNumber:          freshUser.cardNumber || freshUser.card_number,
+                pointsBalance:       freshUser.pointsBalance ?? freshUser.points_balance ?? 0,
+                pointsEarnedTotal:   freshUser.pointsEarnedTotal ?? freshUser.points_earned_total ?? 0,
+                kycStatus:           freshUser.kycStatus || freshUser.kyc_status || 'not_submitted',
+                kycRejectionReason:  freshUser.kycRejectionReason || freshUser.kyc_rejection_reason || null,
+            };
+
+            // Persist fresh data
+            await AsyncStorage.setItem('user', JSON.stringify(normalizedUser));
+            setToken(storedToken);
+            setUser(normalizedUser);
         } catch (error) {
-            console.error('[AuthContext] Error loading user:', error);
+            // Token invalid, expired, or server unreachable — clear session, show Guest
+            console.log('[AuthContext] Session invalid, clearing:', error.message);
+            await AsyncStorage.removeItem('auth_token');
+            await AsyncStorage.removeItem('user');
         } finally {
             setLoading(false);
-            console.log('[AuthContext] Loading complete');
         }
     };
 
     const login = async (email, password) => {
         try {
-            console.log('[AuthContext] Login attempt for:', email);
-            // FIX: Pass arguments separately as expected by api.js
-            const response = await authAPI.login(email, password);
+            console.log('[AuthContext] Login attempt for:', email, 'variant:', APP_VARIANT);
+            // Send the app variant so the server can block cross-app login
+            // (e.g. driver account on Customer app).
+            const response = await authAPI.login(email, password, APP_VARIANT);
 
             console.log('[AuthContext] Login successful:', response.data.user.email, response.data.user.role);
             await AsyncStorage.setItem('auth_token', response.data.token);
@@ -91,8 +113,9 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (userData) => {
         try {
-            console.log('[AuthContext] Register attempt for:', userData.email);
-            const response = await authAPI.register(userData);
+            console.log('[AuthContext] Register attempt for:', userData.email, 'variant:', APP_VARIANT);
+            // Always attach the app variant so the server can enforce role/variant rules.
+            const response = await authAPI.register({ ...userData, appVariant: APP_VARIANT });
             const { user, token } = response.data;
 
             console.log('[AuthContext] Registration successful:', user.email, user.role);
@@ -131,10 +154,21 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
+        // Best-effort unregister the device's push token so the next account on
+        // this phone doesn't inherit pushes. Must run BEFORE we drop the JWT
+        // since the endpoint is authenticated.
+        try { await notificationService.unregisterFromBackend(); } catch (_) {}
         await AsyncStorage.removeItem('auth_token');
         await AsyncStorage.removeItem('user');
         setUser(null);
         setToken(null);
+    };
+
+    // Merge partial updates into the stored user (e.g. kycStatus after submission)
+    const updateUser = async (partialUpdate) => {
+        const updated = { ...user, ...partialUpdate };
+        setUser(updated);
+        await AsyncStorage.setItem('user', JSON.stringify(updated));
     };
 
     const value = {
@@ -144,6 +178,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        updateUser,
         isAuthenticated: !!user,
     };
 

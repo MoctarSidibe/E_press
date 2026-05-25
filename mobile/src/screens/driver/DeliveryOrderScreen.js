@@ -11,7 +11,7 @@ import {
     Linking,
     Platform,
     Dimensions,
-    Animated
+    Animated,
 } from 'react-native';
 import OpenStreetMap from '../../components/map/OpenStreetMap';
 import * as Location from 'expo-location';
@@ -24,21 +24,37 @@ import SignaturePad from '../../components/SignaturePad';
 import OrderReceipt from '../../components/OrderReceipt';
 import theme from '../../theme/theme';
 
-const { height } = Dimensions.get('window');
+const SCREEN_H = Dimensions.get('window').height;
+const COLLAPSED_H = 170;
+const EXPANDED_H = SCREEN_H - 80;
+
+const ACTIVE_STATUSES = ['driver_en_route_delivery', 'arrived_delivery'];
+
+const PAYMENT_OPTIONS = [
+    { value: 'cash', label: 'Espèces', icon: 'cash' },
+    { value: 'airtel_money', label: 'Airtel Money', icon: 'cellphone' },
+    { value: 'moov_money', label: 'Moov Money', icon: 'cellphone-wireless' },
+];
 
 const DeliveryOrderScreen = ({ navigation, route }) => {
     const { t } = useTranslation();
     const { orderId } = route.params;
+
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
-    // Route state
+    // Location & route
     const [userLocation, setUserLocation] = useState(null);
     const [routeCoords, setRouteCoords] = useState([]);
     const [routeInfo, setRouteInfo] = useState(null);
+    const locationSubscription = useRef(null);
 
-    // Form state
+    // Bottom sheet
+    const [isExpanded, setIsExpanded] = useState(false);
+    const bottomSheetHeight = useRef(new Animated.Value(COLLAPSED_H)).current;
+
+    // Delivery form
     const [itemCount, setItemCount] = useState('');
     const [photos, setPhotos] = useState([]);
     const [signature, setSignature] = useState(null);
@@ -48,44 +64,45 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
     const [isVerified, setIsVerified] = useState(false);
     const [showQR, setShowQR] = useState(false);
 
-    // Location Tracking
-    const locationSubscription = useRef(null);
+    // ── Navigation guard ───────────────────────────────────────────────────────
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+            if (!order || !ACTIVE_STATUSES.includes(order.status)) return;
+            e.preventDefault();
+            Alert.alert(
+                'Livraison en cours',
+                'Vous avez une livraison en cours. Voulez-vous vraiment quitter ?',
+                [
+                    { text: 'Rester', style: 'cancel' },
+                    { text: 'Quitter', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+                ]
+            );
+        });
+        return unsubscribe;
+    }, [navigation, order]);
+
+    // ── Auto-expand on arrival ─────────────────────────────────────────────────
+    useEffect(() => {
+        if (order?.status === 'arrived_delivery' && !isExpanded) {
+            expandSheet();
+        }
+    }, [order?.status]);
 
     useEffect(() => {
         loadOrder();
         startLocationTracking();
-
-        return () => {
-            if (locationSubscription.current) {
-                locationSubscription.current.remove();
-            }
-        };
+        return () => { locationSubscription.current?.remove(); };
     }, []);
 
-    // Get Real-time Driver Location
     const startLocationTracking = async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') return;
-
-            // Initial position
             const location = await Location.getCurrentPositionAsync({});
-            setUserLocation({
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-            });
-
-            // Watch for updates
+            setUserLocation({ latitude: location.coords.latitude, longitude: location.coords.longitude });
             locationSubscription.current = await Location.watchPositionAsync(
-                {
-                    accuracy: Location.Accuracy.High,
-                    distanceInterval: 10,
-                    timeInterval: 5000
-                },
-                (newLocation) => {
-                    const { latitude, longitude } = newLocation.coords;
-                    setUserLocation({ latitude, longitude });
-                }
+                { accuracy: Location.Accuracy.High, distanceInterval: 15, timeInterval: 8000 },
+                ({ coords }) => setUserLocation({ latitude: coords.latitude, longitude: coords.longitude })
             );
         } catch (error) {
             console.warn('Location error:', error);
@@ -96,7 +113,6 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
         try {
             const response = await ordersAPI.getById(orderId);
             setOrder(response.data);
-            // Pre-fill expected item count
             setItemCount(response.data.confirmed_item_count?.toString() || '');
         } catch (error) {
             Alert.alert(t('common.error'), t('errors.generic'));
@@ -106,936 +122,487 @@ const DeliveryOrderScreen = ({ navigation, route }) => {
         }
     };
 
-    // Status update handler
-    const handleStatusUpdate = async (newStatus) => {
-        if (loading) return;
+    // ── Coordinates ────────────────────────────────────────────────────────────
+    const getDelivCoords = (o) => {
+        if (!o) return null;
+        if (o.delivery_location?.latitude && o.delivery_location?.longitude) {
+            return { latitude: parseFloat(o.delivery_location.latitude), longitude: parseFloat(o.delivery_location.longitude) };
+        }
+        if (o.delivery_lat && o.delivery_lng) {
+            return { latitude: parseFloat(o.delivery_lat), longitude: parseFloat(o.delivery_lng) };
+        }
+        return null;
+    };
 
+    const coords = getDelivCoords(order);
+
+    // ── Route ──────────────────────────────────────────────────────────────────
+    const routeFetched = useRef(false);
+    useEffect(() => {
+        if (!userLocation || !order || routeFetched.current) return;
+        const c = getDelivCoords(order);
+        if (!c) return;
+        routeFetched.current = true;
+        routingService.getRoute(userLocation, c)
+            .then(r => { if (r) { setRouteCoords(r.coordinates); setRouteInfo({ distance: r.distance, duration: r.duration }); } })
+            .catch(() => {});
+    }, [userLocation, order]);
+
+    // ── Status update ──────────────────────────────────────────────────────────
+    const handleStatusUpdate = async (newStatus) => {
         try {
             await ordersAPI.updateStatus(orderId, newStatus);
-            // Optimistic update
             setOrder(prev => ({ ...prev, status: newStatus }));
-
-            // If arriving, zoom in to delivery location
-            if (newStatus === 'arrived_delivery' && coords && mapRef.current) {
-                mapRef.current.animateToRegion({
-                    ...coords,
-                    latitudeDelta: 0.002,
-                    longitudeDelta: 0.002
-                }, 1000);
-            }
         } catch (error) {
             console.error('Status update failed:', error);
-            Alert.alert('Error', 'Failed to update status');
+            Alert.alert(t('common.error'), t('errors.generic'));
         }
     };
 
-    const getPrimaryActionButton = () => {
-        if (!order) return null;
+    // ── Arrived confirmation ───────────────────────────────────────────────────
+    const confirmArrival = () => {
+        Alert.alert(
+            'Confirmation d\'arrivée',
+            `Êtes-vous bien arrivé à l\'adresse de livraison ?\n\n${order?.delivery_address || ''}`,
+            [
+                { text: 'Pas encore', style: 'cancel' },
+                { text: 'Oui, je suis arrivé', onPress: () => handleStatusUpdate('arrived_delivery') },
+            ]
+        );
+    };
 
+    // ── Bottom sheet ───────────────────────────────────────────────────────────
+    const expandSheet = () => {
+        Animated.spring(bottomSheetHeight, { toValue: EXPANDED_H, useNativeDriver: false, friction: 8, tension: 50 }).start();
+        setIsExpanded(true);
+    };
+    const collapseSheet = () => {
+        Animated.spring(bottomSheetHeight, { toValue: COLLAPSED_H, useNativeDriver: false, friction: 8, tension: 50 }).start();
+        setIsExpanded(false);
+    };
+    const toggleSheet = () => isExpanded ? collapseSheet() : expandSheet();
+
+    // ── Action button ──────────────────────────────────────────────────────────
+    const getPrimaryButton = () => {
+        if (!order) return null;
         switch (order.status) {
             case 'picked_up':
-            case 'cleaning': // In case it was stuck there
+            case 'cleaning':
             case 'ready':
-                return {
-                    label: t('driver.delivery.startTrip'),
-                    color: theme.colors.primary,
-                    icon: 'car-connected',
-                    onPress: () => handleStatusUpdate('driver_en_route_delivery')
-                };
+            case 'ready_for_delivery':
+                return { label: 'Démarrer la livraison', color: theme.colors.primary, icon: 'motorbike', onPress: () => handleStatusUpdate('driver_en_route_delivery') };
             case 'driver_en_route_delivery':
-                return {
-                    label: t('driver.delivery.arrived'),
-                    color: theme.colors.success,
-                    icon: 'map-marker-check',
-                    onPress: () => handleStatusUpdate('arrived_delivery')
-                };
+                return { label: 'Je suis Arrivé', color: theme.colors.success, icon: 'map-marker-check', onPress: confirmArrival };
             case 'arrived_delivery':
-                return {
-                    label: t('driver.delivery.startDelivery'),
-                    color: theme.colors.secondary, // Use secondary for delivery action
-                    icon: 'package-variant-closed',
-                    onPress: toggleBottomSheet
-                };
+                return { label: isExpanded ? 'Réduire' : 'Procéder à la livraison', color: theme.colors.secondary, icon: 'package-variant-closed', onPress: toggleSheet };
             default:
-                return {
-                    label: t('driver.delivery.viewDetails'),
-                    color: theme.colors.textSecondary,
-                    icon: 'chevron-up',
-                    onPress: toggleBottomSheet
-                };
+                return { label: 'Voir les détails', color: theme.colors.textSecondary, icon: 'chevron-up', onPress: toggleSheet };
         }
     };
 
-    const actionButton = getPrimaryActionButton();
-
-    const handleNavigate = () => {
-        if (!coords) {
-            Alert.alert(t('common.error'), t('driver.delivery.locationMissing'));
-            return;
-        }
-
-        const { latitude, longitude } = coords;
-
-        // External Navigation
-        const url = Platform.select({
-            ios: `http://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=d`,
-            android: `google.navigation:q=${latitude},${longitude}&mode=d`
-        });
-
-        Linking.openURL(url).catch(() => {
-            const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-            Linking.openURL(webUrl);
-        });
-    };
-
+    // ── QR scan ────────────────────────────────────────────────────────────────
     const handleScanQR = () => {
-        navigation.navigate('QRScanner', {
+        navigation.navigate('ScanQR', {
             orderId,
             onScan: (scannedOrder) => {
                 setIsVerified(true);
-                Alert.alert(t('driver.delivery.qrVerified'), t('driver.delivery.qrVerifiedMessage', { orderNumber: scannedOrder.order_number }));
-            }
+                Alert.alert('QR Vérifié ✓', `Commande #${scannedOrder.num || scannedOrder.order_number} confirmée.`);
+            },
         });
     };
 
-    const handleSaveSignature = (signatureData) => {
-        setSignature(signatureData);
-        setShowSignaturePad(false);
-        Alert.alert(t('common.success'), t('driver.delivery.signatureCaptured'));
+    // ── External navigation ────────────────────────────────────────────────────
+    const handleNavigate = () => {
+        if (!coords) { Alert.alert(t('common.error'), 'Adresse non disponible'); return; }
+        const url = Platform.select({
+            ios: `http://maps.apple.com/?daddr=${coords.latitude},${coords.longitude}&dirflg=d`,
+            android: `google.navigation:q=${coords.latitude},${coords.longitude}&mode=d`,
+        });
+        Linking.openURL(url).catch(() =>
+            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${coords.latitude},${coords.longitude}&travelmode=driving`)
+        );
     };
 
+    // ── Submit ─────────────────────────────────────────────────────────────────
     const handleSubmit = async () => {
-        // Validation
         if (!itemCount || itemCount === '0') {
-            Alert.alert(t('common.error'), t('driver.delivery.enterItemCount'));
+            Alert.alert(t('common.error'), 'Veuillez indiquer le nombre d\'articles livrés.');
             return;
         }
-
         if (!signature) {
-            Alert.alert(t('common.error'), t('driver.delivery.customerSignatureRequired'));
+            Alert.alert(t('common.error'), 'La signature du client est requise pour confirmer la livraison.');
             return;
         }
-
         if (photos.length === 0) {
-            Alert.alert(
-                t('driver.pickup.noPhotos'),
-                t('driver.pickup.noPhotosContinue'),
-                [
-                    { text: t('common.cancel'), style: 'cancel' },
-                    { text: t('common.continue'), onPress: submitDelivery }
-                ]
-            );
+            Alert.alert('Aucune photo', 'Souhaitez-vous continuer sans photo de preuve ?', [
+                { text: 'Annuler', style: 'cancel' },
+                { text: 'Continuer', onPress: submitDelivery },
+            ]);
             return;
         }
-
         await submitDelivery();
     };
 
     const submitDelivery = async () => {
         setSubmitting(true);
-
         try {
-            const scanData = {
+            await ordersAPI.scanOrder(orderId, {
                 checkpoint: 'delivered',
                 item_count: parseInt(itemCount),
                 signature_data: signature,
-                photos: photos,
+                photos,
                 notes,
-                payment_method: paymentMethod
-            };
-
-            await ordersAPI.scanOrder(orderId, scanData);
-
-            // Payment verification should be handled by backend or separate flow
-            // For now, we assume if the API call succeeds, we can proceed.
-
-
+                payment_method: paymentMethod,
+            });
+            const payLabel = PAYMENT_OPTIONS.find(p => p.value === paymentMethod)?.label || paymentMethod;
             Alert.alert(
-                t('driver.delivery.deliveryComplete'),
-                t('driver.delivery.deliveryCompleteMessage', { payment: paymentMethod === 'cash' ? 'Cash' : paymentMethod === 'airtel_money' ? 'Airtel Money' : 'Moov Money' }),
-                [
-                    {
-                        text: t('common.ok'),
-                        onPress: () => navigation.navigate('Available')
-                    }
-                ]
+                'Livraison confirmée ✓',
+                `Paiement encaissé : ${payLabel}\n(${(parseFloat(order.total || 0) * 100).toFixed(0)} Fcfa)`,
+                [{ text: 'OK', onPress: () => navigation.popToTop() }]
             );
         } catch (error) {
-            Alert.alert(t('common.error'), error.response?.data?.error || t('driver.delivery.failedCompleteDelivery'));
+            Alert.alert(t('common.error'), error.response?.data?.error || 'Échec de la confirmation.');
         } finally {
             setSubmitting(false);
         }
     };
 
-    // Animation for bottom sheet (Delivery)
-    const [isExpanded, setIsExpanded] = useState(false);
-    const bottomSheetHeight = useRef(new Animated.Value(height * 0.35)).current;
+    // ── Computed ───────────────────────────────────────────────────────────────
+    const actionButton = getPrimaryButton();
+    const isEnRoute = order?.status === 'driver_en_route_delivery';
+    const isArrived = order?.status === 'arrived_delivery';
 
-    // Map Ref
-    const mapRef = useRef(null);
-
-    const toggleBottomSheet = () => {
-        const targetHeight = isExpanded ? height * 0.35 : height * 0.85;
-
-        Animated.spring(bottomSheetHeight, {
-            toValue: targetHeight,
-            useNativeDriver: false,
-            friction: 6,
-            tension: 40
-        }).start();
-
-        setIsExpanded(!isExpanded);
+    const stepsReady = {
+        qr: isVerified,
+        items: !!itemCount && itemCount !== '0',
+        signature: !!signature,
     };
+    const allStepsDone = stepsReady.qr && stepsReady.items && stepsReady.signature;
 
-    // Helper to get coordinates robustly
-    const getOrderCoordinates = () => {
-        if (!order) return null;
-
-        // Try delivery_location object first
-        if (order.delivery_location?.latitude && order.delivery_location?.longitude) {
-            return {
-                latitude: parseFloat(order.delivery_location.latitude),
-                longitude: parseFloat(order.delivery_location.longitude)
-            };
-        }
-
-        // Fallback to flat properties
-        if (order.delivery_lat && order.delivery_lng) {
-            return {
-                latitude: parseFloat(order.delivery_lat),
-                longitude: parseFloat(order.delivery_lng)
-            };
-        }
-
-        return null;
-    };
-
-    const coords = getOrderCoordinates();
-
-    // Fetch Route when we have both points
-    useEffect(() => {
-        if (userLocation && coords) {
-            fetchRoute();
-        }
-    }, [userLocation, order]);
-
-    const fetchRoute = async () => {
-        if (!userLocation || !coords) return;
-
-        const result = await routingService.getRoute(userLocation, coords);
-        if (result) {
-            setRouteCoords(result.coordinates);
-            setRouteInfo({
-                distance: result.distance,
-                duration: result.duration
-            });
-
-            // Zoom map to fit route
-            if (mapRef.current) {
-                mapRef.current.fitToCoordinates(result.coordinates, {
-                    edgePadding: { top: 100, right: 50, bottom: height * 0.35 + 50, left: 50 },
-                    animated: true,
-                });
-            }
-        }
-    };
+    const mapMarkers = [];
+    if (coords) mapMarkers.push({ latitude: coords.latitude, longitude: coords.longitude, title: 'Livraison', description: order?.delivery_address || '' });
+    if (userLocation) mapMarkers.push({ latitude: userLocation.latitude, longitude: userLocation.longitude, title: 'Vous', description: 'Votre position' });
 
     if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-            </View>
-        );
+        return <View style={styles.loadingContainer}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
     }
+    if (!order) return null;
 
     return (
         <View style={styles.container}>
-            {/* Full Screen Map */}
-            {/* Full Screen Map */}
+            {/* Map */}
             <OpenStreetMap
                 style={StyleSheet.absoluteFill}
                 initialRegion={{
-                    latitude: coords?.latitude || 0,
-                    longitude: coords?.longitude || 0,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
+                    latitude: coords?.latitude || userLocation?.latitude || 0.3924,
+                    longitude: coords?.longitude || userLocation?.longitude || 9.4536,
+                    latitudeDelta: 0.02, longitudeDelta: 0.02,
                 }}
-                markers={coords ? [{
-                    latitude: coords.latitude,
-                    longitude: coords.longitude,
-                    title: "Delivery Location",
-                    description: order.delivery_address
-                }] : []}
-                polylines={routeCoords.length > 0 ? [{
-                    coordinates: routeCoords,
-                    strokeColor: theme.colors.primary,
-                    strokeWidth: 4
-                }] : []}
+                markers={mapMarkers}
+                polylines={routeCoords.length > 0 ? [{ coordinates: routeCoords, strokeColor: theme.colors.success, strokeWidth: 5 }] : []}
                 interaction="nav"
-                onRegionChange={(region) => {
-                    // Update user location tracking if needed
-                }}
             />
 
-            {/* Top Route Info Card */}
-            {routeInfo && order?.status === 'driver_en_route_delivery' && (
-                <View style={styles.routeInfoCard}>
-                    <View style={styles.routeStats}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{(routeInfo.distance / 1000).toFixed(1)}</Text>
-                            <Text style={styles.statLabel}>km</Text>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{Math.ceil(routeInfo.duration / 60)}</Text>
-                            <Text style={styles.statLabel}>min</Text>
-                        </View>
-                    </View>
+            {/* ETA pill */}
+            {routeInfo && isEnRoute && (
+                <View style={styles.etaPill}>
+                    <MaterialCommunityIcons name="clock-fast" size={16} color="#fff" />
+                    <Text style={styles.etaText}>{Math.ceil(routeInfo.duration / 60)} min</Text>
+                    <View style={styles.etaDivider} />
+                    <MaterialCommunityIcons name="map-marker-distance" size={16} color="#fff" />
+                    <Text style={styles.etaText}>{(routeInfo.distance / 1000).toFixed(1)} km</Text>
                 </View>
             )}
 
-            {/* Top Overlay Controls */}
+            {/* Arrived badge */}
+            {isArrived && (
+                <View style={[styles.arrivedBadge, { backgroundColor: theme.colors.secondary }]}>
+                    <MaterialCommunityIcons name="map-marker-check" size={18} color="#fff" />
+                    <Text style={styles.arrivedText}>Arrivé — livraison en cours</Text>
+                </View>
+            )}
+
+            {/* Top controls */}
             <View style={styles.topOverlay}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color="#000" />
+                    <MaterialCommunityIcons name="arrow-left" size={22} color="#1a1a1a" />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleNavigate} style={styles.navigateButton}>
-                    <MaterialCommunityIcons name="navigation" size={20} color="#fff" />
-                    <Text style={styles.navigateText}>NAVIGATE</Text>
+                <TouchableOpacity onPress={handleNavigate} style={styles.navButton}>
+                    <MaterialCommunityIcons name="navigation-variant" size={18} color="#fff" />
+                    <Text style={styles.navButtonText}>Naviguer</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Bottom Sheet Order Details */}
+            {/* Bottom sheet */}
             <Animated.View style={[styles.bottomSheet, { height: bottomSheetHeight }]}>
-                {/* Drag Handle / Header */}
-                <TouchableOpacity activeOpacity={0.9} onPress={toggleBottomSheet} style={styles.sheetHeader}>
-                    <View style={styles.handleIndicator} />
-                    <View style={styles.headerContent}>
-                        <View>
-                            <Text style={styles.headerTitle}>Delivery Order #{order.order_number}</Text>
-                            <Text style={styles.headerAddress} numberOfLines={1}>{order.delivery_address}</Text>
-                            <Text style={styles.collectText}>
-                                Collect: ${parseFloat(order.total).toFixed(2)}
-                            </Text>
-                        </View>
-                        <View style={styles.statusBadge}>
-                            <Text style={styles.statusText}>{order.status.replace(/_/g, ' ').toUpperCase()}</Text>
-                        </View>
-                    </View>
-
-                    {/* Action Row */}
-                    <View style={styles.actionRow}>
-                        {actionButton && (
-                            <TouchableOpacity
-                                style={[styles.primaryButton, { backgroundColor: actionButton.color }]}
-                                onPress={actionButton.onPress}
-                            >
-                                <MaterialCommunityIcons name={actionButton.icon} size={20} color="#fff" style={{ marginRight: 8 }} />
-                                <Text style={styles.primaryButtonText}>{actionButton.label}</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        {/* Secondary External Map Button */}
-                        <TouchableOpacity style={styles.mapButton} onPress={handleNavigate}>
-                            <MaterialCommunityIcons name="google-maps" size={24} color={theme.colors.primary} />
-                        </TouchableOpacity>
-                    </View>
+                <TouchableOpacity activeOpacity={0.9} onPress={toggleSheet} style={styles.sheetHandle}>
+                    <View style={styles.handleBar} />
                 </TouchableOpacity>
 
-                {/* Scrollable Content */}
-                <ScrollView
-                    style={styles.sheetContent}
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                    showsVerticalScrollIndicator={false}
-                >
-                    {/* Customer Info */}
-                    <View style={styles.section}>
-                        <View style={styles.customerRow}>
-                            <View style={styles.customerAvatar}>
-                                <Text style={styles.customerInitials}>
-                                    {order.customer_name?.substring(0, 2).toUpperCase()}
-                                </Text>
-                            </View>
-                            <View style={styles.customerInfo}>
-                                <Text style={styles.customerName}>{order.customer_name}</Text>
-                                <TouchableOpacity onPress={() => Linking.openURL(`tel:${order.customer_phone}`)}>
-                                    <Text style={styles.customerPhone}>{order.customer_phone}</Text>
-                                </TouchableOpacity>
-                            </View>
-                            <TouchableOpacity
-                                style={styles.callButton}
-                                onPress={() => Linking.openURL(`tel:${order.customer_phone}`)}
-                            >
-                                <MaterialCommunityIcons name="phone" size={24} color={theme.colors.primary} />
-                            </TouchableOpacity>
+                {/* Header */}
+                <View style={styles.sheetHeader}>
+                    <View style={styles.sheetHeaderLeft}>
+                        <Text style={styles.customerName} numberOfLines={1}>{order.customer_name}</Text>
+                        <Text style={styles.orderRef}>Commande #{order.order_number}</Text>
+                        <Text style={styles.totalText}>
+                            À encaisser : {(parseFloat(order.total || 0) * 100).toFixed(0)} Fcfa
+                        </Text>
+                    </View>
+                    <View style={[styles.statusBadge, isArrived && { backgroundColor: theme.colors.secondary }]}>
+                        <Text style={styles.statusText}>
+                            {isArrived ? 'ARRIVÉ' : isEnRoute ? 'EN ROUTE' : order.status.replace(/_/g, ' ').toUpperCase()}
+                        </Text>
+                    </View>
+                </View>
+
+                {/* Action button */}
+                <View style={styles.actionRow}>
+                    {actionButton && (
+                        <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: actionButton.color }]} onPress={actionButton.onPress}>
+                            <MaterialCommunityIcons name={actionButton.icon} size={20} color="#fff" style={{ marginRight: 8 }} />
+                            <Text style={styles.primaryBtnText}>{actionButton.label}</Text>
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={styles.mapIconBtn} onPress={handleNavigate}>
+                        <MaterialCommunityIcons name="google-maps" size={24} color={theme.colors.primary} />
+                    </TouchableOpacity>
+                </View>
+
+                <ScrollView style={styles.sheetContent} contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
+
+                    {/* Step progress */}
+                    {isArrived && (
+                        <View style={styles.stepsRow}>
+                            {[
+                                { key: 'qr', label: 'QR', done: stepsReady.qr, icon: 'qrcode-scan' },
+                                { key: 'items', label: 'Articles', done: stepsReady.items, icon: 'package-variant' },
+                                { key: 'signature', label: 'Signature', done: stepsReady.signature, icon: 'draw' },
+                            ].map((step, i) => (
+                                <React.Fragment key={step.key}>
+                                    <View style={styles.stepItem}>
+                                        <View style={[styles.stepIcon, step.done && styles.stepIconDone]}>
+                                            <MaterialCommunityIcons name={step.done ? 'check' : step.icon} size={18} color={step.done ? '#fff' : theme.colors.textSecondary} />
+                                        </View>
+                                        <Text style={[styles.stepLabel, step.done && styles.stepLabelDone]}>{step.label}</Text>
+                                    </View>
+                                    {i < 2 && <View style={[styles.stepLine, step.done && styles.stepLineDone]} />}
+                                </React.Fragment>
+                            ))}
                         </View>
+                    )}
+
+                    {/* Customer info */}
+                    <View style={styles.customerRow}>
+                        <View style={[styles.customerAvatar, { backgroundColor: theme.colors.secondary + '18' }]}>
+                            <Text style={[styles.customerInitials, { color: theme.colors.secondary }]}>{order.customer_name?.substring(0, 2).toUpperCase()}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.customerNameFull}>{order.customer_name}</Text>
+                            <Text style={styles.customerPhone}>{order.customer_phone}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${order.customer_phone}`)}>
+                            <MaterialCommunityIcons name="phone" size={22} color={theme.colors.primary} />
+                        </TouchableOpacity>
                     </View>
 
-                    {/* Actions Grid */}
-                    <View style={styles.actionGrid}>
+                    {/* Delivery address */}
+                    <View style={styles.addressCard}>
+                        <MaterialCommunityIcons name="map-marker-down" size={18} color={theme.colors.success} />
+                        <Text style={styles.addressText} numberOfLines={2}>{order.delivery_address || 'Adresse non disponible'}</Text>
+                    </View>
+
+                    {/* Action cards */}
+                    <View style={styles.actionCards}>
                         <TouchableOpacity style={styles.actionCard} onPress={() => setShowQR(true)}>
-                            <View style={[styles.actionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                                <MaterialCommunityIcons
-                                    name="qrcode"
-                                    size={28}
-                                    color={theme.colors.primary}
-                                />
+                            <View style={[styles.actionCardIcon, { backgroundColor: '#E0F2FE' }]}>
+                                <MaterialCommunityIcons name="qrcode" size={26} color="#0284C7" />
                             </View>
-                            <Text style={styles.actionLabel}>Show QR</Text>
+                            <Text style={styles.actionCardLabel}>Montrer QR</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={[styles.actionCard, isVerified && { borderColor: theme.colors.success, backgroundColor: theme.colors.success + '10' }]}
-                            onPress={handleScanQR}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: isVerified ? theme.colors.success + '20' : theme.colors.secondary + '20' }]}>
-                                <MaterialCommunityIcons
-                                    name={isVerified ? "check-decagram" : "qrcode-scan"}
-                                    size={28}
-                                    color={isVerified ? theme.colors.success : theme.colors.secondary}
-                                />
+                        <TouchableOpacity style={[styles.actionCard, isVerified && styles.actionCardDone]} onPress={handleScanQR}>
+                            <View style={[styles.actionCardIcon, { backgroundColor: isVerified ? '#D1FAE5' : '#F0FDF4' }]}>
+                                <MaterialCommunityIcons name={isVerified ? 'check-decagram' : 'qrcode-scan'} size={26} color={isVerified ? theme.colors.success : '#16A34A'} />
                             </View>
-                            <Text style={[styles.actionLabel, isVerified && { color: theme.colors.success, fontWeight: 'bold' }]}>
-                                {isVerified ? t('driver.delivery.verified') : t('driver.delivery.scanQR')}
-                            </Text>
+                            <Text style={[styles.actionCardLabel, isVerified && { color: theme.colors.success }]}>{isVerified ? 'Vérifié ✓' : 'Scanner QR'}</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.actionCard} onPress={() => setShowSignaturePad(true)}>
-                            <View style={[styles.actionIcon, { backgroundColor: signature ? theme.colors.success + '20' : theme.colors.primary + '20' }]}>
-                                <MaterialCommunityIcons
-                                    name={signature ? "check-circle" : "draw"}
-                                    size={28}
-                                    color={signature ? theme.colors.success : theme.colors.primary}
-                                />
+                        <TouchableOpacity style={[styles.actionCard, signature && styles.actionCardDone]} onPress={() => setShowSignaturePad(true)}>
+                            <View style={[styles.actionCardIcon, { backgroundColor: signature ? '#D1FAE5' : '#FEF3C7' }]}>
+                                <MaterialCommunityIcons name={signature ? 'check-circle' : 'draw'} size={26} color={signature ? theme.colors.success : '#D97706'} />
                             </View>
-                            <Text style={styles.actionLabel}>{signature ? t('driver.delivery.signed') : t('driver.delivery.signature')}</Text>
+                            <Text style={[styles.actionCardLabel, signature && { color: theme.colors.success }]}>{signature ? 'Signé ✓' : 'Signature'}</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {/* Verification & Items */}
+                    {/* Item count */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>{t('driver.delivery.verification')}</Text>
-                        <View style={styles.countContainer}>
-                            <TouchableOpacity
-                                style={styles.countButton}
-                                onPress={() => setItemCount(Math.max(0, parseInt(itemCount || 0) - 1).toString())}
-                            >
-                                <MaterialCommunityIcons name="minus" size={24} color={theme.colors.primary} />
+                        <Text style={styles.sectionTitle}>Articles livrés</Text>
+                        <View style={styles.countRow}>
+                            <TouchableOpacity style={styles.countBtn} onPress={() => setItemCount(Math.max(0, parseInt(itemCount || 0) - 1).toString())}>
+                                <MaterialCommunityIcons name="minus" size={22} color={theme.colors.primary} />
                             </TouchableOpacity>
                             <View style={styles.countDisplay}>
-                                <TextInput
-                                    style={styles.countInput}
-                                    value={itemCount}
-                                    onChangeText={setItemCount}
-                                    keyboardType="number-pad"
-                                    placeholder="0"
-                                />
-                                <Text style={styles.countLabel}>{t('driver.delivery.items')}</Text>
+                                <TextInput style={styles.countInput} value={itemCount} onChangeText={setItemCount} keyboardType="number-pad" placeholder="0" placeholderTextColor="#ccc" />
+                                <Text style={styles.countUnit}>articles</Text>
                             </View>
-                            <TouchableOpacity
-                                style={styles.countButton}
-                                onPress={() => setItemCount((parseInt(itemCount || 0) + 1).toString())}
-                            >
-                                <MaterialCommunityIcons name="plus" size={24} color={theme.colors.primary} />
+                            <TouchableOpacity style={styles.countBtn} onPress={() => setItemCount((parseInt(itemCount || 0) + 1).toString())}>
+                                <MaterialCommunityIcons name="plus" size={22} color={theme.colors.primary} />
                             </TouchableOpacity>
                         </View>
-                        {itemCount && parseInt(itemCount) !== order.confirmed_item_count && (
-                            <View style={styles.warningBox}>
-                                <MaterialCommunityIcons name="alert" size={20} color={theme.colors.warning} />
-                                <Text style={styles.warningText}>
-                                    {t('driver.delivery.mismatchExpected', { count: order.confirmed_item_count })}
-                                </Text>
-                            </View>
-                        )}
                     </View>
 
-                    {/* Payment Method - Delivery Specific */}
+                    {/* Payment method */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>{t('driver.delivery.paymentCollection')}</Text>
-                        <View style={styles.demoBanner}>
-                            <MaterialCommunityIcons name="information" size={16} color={theme.colors.info} />
-                            <Text style={styles.demoBannerText}>{t('driver.delivery.selectPaymentCollected')}</Text>
-                        </View>
-
-                        {['cash', 'airtel_money', 'moov_money'].map((method) => (
+                        <Text style={styles.sectionTitle}>Mode de paiement encaissé</Text>
+                        {PAYMENT_OPTIONS.map((opt) => (
                             <TouchableOpacity
-                                key={method}
-                                style={[
-                                    styles.paymentOption,
-                                    paymentMethod === method && styles.paymentOptionSelected
-                                ]}
-                                onPress={() => setPaymentMethod(method)}
+                                key={opt.value}
+                                style={[styles.paymentOption, paymentMethod === opt.value && styles.paymentOptionSelected]}
+                                onPress={() => setPaymentMethod(opt.value)}
                             >
-                                <MaterialCommunityIcons
-                                    name={method === 'cash' ? 'cash' : 'cellphone'}
-                                    size={24}
-                                    color={paymentMethod === method ? theme.colors.primary : theme.colors.textSecondary}
-                                />
-                                <Text style={[
-                                    styles.paymentText,
-                                    paymentMethod === method && styles.paymentTextSelected
-                                ]}>
-                                    {method === 'cash' ? 'Cash' :
-                                        method === 'airtel_money' ? 'Airtel Money' : 'Moov Money'}
-                                </Text>
-                                {paymentMethod === method && (
-                                    <MaterialCommunityIcons name="check-circle" size={24} color={theme.colors.primary} />
-                                )}
+                                <MaterialCommunityIcons name={opt.icon} size={22} color={paymentMethod === opt.value ? theme.colors.primary : theme.colors.textSecondary} />
+                                <Text style={[styles.paymentLabel, paymentMethod === opt.value && styles.paymentLabelSelected]}>{opt.label}</Text>
+                                {paymentMethod === opt.value && <MaterialCommunityIcons name="check-circle" size={20} color={theme.colors.primary} />}
                             </TouchableOpacity>
                         ))}
                     </View>
 
                     {/* Photos */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>{t('driver.delivery.proofOfDelivery')}</Text>
-                        <Text style={styles.sectionSubtitle}>
-                            {t('driver.delivery.proofOfDeliverySubtitle')}
-                        </Text>
-                        <PhotoCapture
-                            photos={photos}
-                            onPhotosChange={setPhotos}
-                            maxPhotos={5}
-                        />
+                        <Text style={styles.sectionTitle}>Preuve de livraison</Text>
+                        <PhotoCapture photos={photos} onPhotosChange={setPhotos} maxPhotos={5} />
                     </View>
 
-                    <View style={{ height: 20 }} />
+                    {/* Notes */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Notes (optionnel)</Text>
+                        <TextInput
+                            style={styles.notesInput} value={notes} onChangeText={setNotes}
+                            placeholder="Observations..." placeholderTextColor={theme.colors.textTertiary}
+                            multiline numberOfLines={3}
+                        />
+                    </View>
                 </ScrollView>
 
-                {/* Fixed Footer Logic inside Bottom Sheet */}
-                <View style={styles.sheetFooter}>
-                    <TouchableOpacity
-                        style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
-                        onPress={handleSubmit}
-                        disabled={submitting}
-                    >
-                        {submitting ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <Text style={styles.submitButtonText}>{t('driver.delivery.completeDelivery')}</Text>
+                {/* Footer */}
+                {isArrived && (
+                    <View style={styles.sheetFooter}>
+                        <TouchableOpacity
+                            style={[styles.confirmBtn, (!allStepsDone || submitting) && styles.confirmBtnDisabled]}
+                            onPress={handleSubmit}
+                            disabled={submitting || !allStepsDone}
+                        >
+                            {submitting ? <ActivityIndicator color="#fff" /> : (
+                                <>
+                                    <MaterialCommunityIcons name="check-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+                                    <Text style={styles.confirmBtnText}>Confirmer la livraison</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                        {!allStepsDone && (
+                            <Text style={styles.stepsHint}>
+                                Complétez : {!stepsReady.qr ? 'QR · ' : ''}{!stepsReady.items ? 'Articles · ' : ''}{!stepsReady.signature ? 'Signature' : ''}
+                            </Text>
                         )}
-                    </TouchableOpacity>
-                </View>
+                    </View>
+                )}
             </Animated.View>
 
-            {/* Signature Pad Modal */}
-            <SignaturePad
-                visible={showSignaturePad}
-                onSave={handleSaveSignature}
-                onCancel={() => setShowSignaturePad(false)}
-            />
-
-            {/* Order QR Receipt Modal */}
-            <OrderReceipt
-                visible={showQR}
-                order={order}
-                onClose={() => setShowQR(false)}
-            />
+            <SignaturePad visible={showSignaturePad} onSave={(data) => { setSignature(data); setShowSignaturePad(false); }} onCancel={() => setShowSignaturePad(false)} />
+            <OrderReceipt visible={showQR} order={order} onClose={() => setShowQR(false)} />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
+    container: { flex: 1, backgroundColor: '#f0f0f0' },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    etaPill: {
+        position: 'absolute', top: 140, alignSelf: 'center',
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: 'rgba(0,0,0,0.82)', paddingVertical: 8, paddingHorizontal: 18,
+        borderRadius: 30, zIndex: 20,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8,
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+    etaText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
+    etaDivider: { width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 2 },
+    arrivedBadge: {
+        position: 'absolute', top: 140, alignSelf: 'center',
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        paddingVertical: 8, paddingHorizontal: 18, borderRadius: 30, zIndex: 20,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 8,
     },
-    markerContainer: {
-        backgroundColor: theme.colors.secondary,
-        padding: 8,
-        borderRadius: 20,
-        borderWidth: 2,
-        borderColor: '#fff',
-    },
-    topOverlay: {
-        position: 'absolute',
-        top: 80, // Increased to avoid battery/status bar overlap
-        left: 20,
-        right: 20,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        zIndex: 10,
-    },
+    arrivedText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+    topOverlay: { position: 'absolute', top: 60, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
     iconButton: {
-        width: 45,
-        height: 45,
-        backgroundColor: '#fff',
-        borderRadius: 25,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 5,
+        width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22,
+        justifyContent: 'center', alignItems: 'center',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 4, elevation: 5,
     },
-    navigateButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: theme.colors.primary,
-        paddingHorizontal: 20,
-        height: 45,
-        borderRadius: 25,
-        gap: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 5,
+    navButton: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: theme.colors.success, paddingHorizontal: 18, height: 44, borderRadius: 22,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 4, elevation: 5,
     },
-    navigateText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
+    navButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
     bottomSheet: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -5 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 20,
-        overflow: 'hidden',
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 24,
     },
-    sheetHeader: {
-        paddingTop: 10,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
-    },
-    handleIndicator: {
-        width: 40,
-        height: 5,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 3,
-        alignSelf: 'center',
-        marginBottom: 15,
-    },
-    headerContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-        marginBottom: 4,
-    },
-    headerAddress: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-        width: '90%',
-        marginBottom: 4,
-    },
-    collectText: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: theme.colors.success,
-    },
-    sheetContent: {
-        flex: 1,
-        padding: 20,
-    },
-    section: {
-        marginBottom: 25,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-        marginBottom: 15,
-    },
-    sectionSubtitle: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-        marginBottom: 10,
-    },
-    customerRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    customerAvatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: theme.colors.secondary + '15',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 15,
-    },
-    customerInitials: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: theme.colors.secondary,
-    },
-    customerInfo: {
-        flex: 1,
-    },
-    customerName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-        marginBottom: 2,
-    },
-    customerPhone: {
-        fontSize: 14,
-        color: theme.colors.primary,
-        fontWeight: '600',
-    },
-    callButton: {
-        width: 45,
-        height: 45,
-        borderRadius: 23,
-        backgroundColor: theme.colors.surface,
-        borderWidth: 1,
-        borderColor: '#eee',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    actionGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 25,
-        gap: 15,
-    },
-    actionCard: {
-        flex: 1,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 15,
-        padding: 15,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#eee',
-    },
-    actionIcon: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    actionLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: theme.colors.text,
-    },
-    countContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 20,
-        backgroundColor: '#f8f9fa',
-        padding: 20,
-        borderRadius: 15,
-        borderWidth: 1,
-        borderColor: '#eee',
-    },
-    countButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#fff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        elevation: 1,
-    },
-    countDisplay: {
-        alignItems: 'center',
-        minWidth: 80,
-    },
-    countInput: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-        textAlign: 'center',
-        padding: 0,
-    },
-    countLabel: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-        textTransform: 'uppercase',
-        marginTop: 4,
-    },
-    warningBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: theme.colors.warning + '15',
-        padding: 10,
-        borderRadius: 10,
-        marginTop: 10,
-        gap: 8,
-    },
-    warningText: {
-        color: theme.colors.warning,
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    demoBanner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: theme.colors.info + '20',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        marginBottom: 15,
-        gap: 8,
-    },
-    demoBannerText: {
-        color: theme.colors.info,
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    paymentOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f8f9fa',
-        padding: 15,
-        borderRadius: 12,
-        marginBottom: 10,
-        borderWidth: 2,
-        borderColor: '#f0f0f0',
-        gap: 15,
-    },
-    paymentOptionSelected: {
-        borderColor: theme.colors.primary,
-        backgroundColor: theme.colors.primary + '05',
-    },
-    paymentText: {
-        flex: 1,
-        fontSize: 16,
-        color: theme.colors.text,
-        fontWeight: '500',
-    },
-    paymentTextSelected: {
-        color: theme.colors.primary,
-        fontWeight: 'bold',
-    },
-    sheetFooter: {
-        padding: 20,
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
-        backgroundColor: '#fff',
-    },
-    submitButton: {
-        backgroundColor: theme.colors.success,
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    submitButtonDisabled: {
-        opacity: 0.6,
-    },
-    submitButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        letterSpacing: 1,
-    },
-    // New Styles (Same as Pickup)
-    routeInfoCard: {
-        position: 'absolute',
-        top: 110,
-        alignSelf: 'center',
-        backgroundColor: '#000',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 30,
-        elevation: 5,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        zIndex: 50,
-    },
-    routeStats: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 15,
-    },
-    statItem: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        gap: 4,
-    },
-    statValue: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    statLabel: {
-        color: '#ccc',
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    divider: {
-        width: 1,
-        height: 20,
-        backgroundColor: '#444',
-    },
-    statusBadge: {
-        backgroundColor: '#000',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    statusText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-    orderNumber: {
-        color: theme.colors.textSecondary,
-        fontSize: 14,
-    },
-    actionRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 15,
-        gap: 10,
-    },
-    primaryButton: {
-        flex: 1,
-        flexDirection: 'row',
-        backgroundColor: theme.colors.primary,
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        elevation: 2,
-    },
-    primaryButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    mapButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: '#f0f0f0',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
+    sheetHandle: { paddingTop: 10, paddingBottom: 6, alignItems: 'center' },
+    handleBar: { width: 36, height: 4, backgroundColor: '#DDD', borderRadius: 2 },
+    sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 10 },
+    sheetHeaderLeft: { flex: 1, marginRight: 10 },
+    customerName: { fontSize: 17, fontWeight: '800', color: theme.colors.text },
+    orderRef: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
+    totalText: { fontSize: 14, fontWeight: '700', color: theme.colors.success, marginTop: 3 },
+    statusBadge: { backgroundColor: '#1a1a1a', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginTop: 2 },
+    statusText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+    actionRow: { flexDirection: 'row', paddingHorizontal: 20, paddingBottom: 14, gap: 10 },
+    primaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 14, elevation: 2 },
+    primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+    mapIconBtn: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
+    sheetContent: { flex: 1, paddingHorizontal: 20 },
+    stepsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, marginBottom: 8 },
+    stepItem: { alignItems: 'center', gap: 4 },
+    stepIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#E5E7EB' },
+    stepIconDone: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
+    stepLabel: { fontSize: 11, color: theme.colors.textSecondary, fontWeight: '600' },
+    stepLabelDone: { color: theme.colors.success },
+    stepLine: { width: 40, height: 2, backgroundColor: '#E5E7EB', marginHorizontal: 4, marginBottom: 20 },
+    stepLineDone: { backgroundColor: theme.colors.success },
+    customerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+    customerAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    customerInitials: { fontSize: 16, fontWeight: '800' },
+    customerNameFull: { fontSize: 15, fontWeight: '700', color: theme.colors.text },
+    customerPhone: { fontSize: 13, color: theme.colors.primary, fontWeight: '600', marginTop: 2 },
+    callBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.colors.primary + '12', justifyContent: 'center', alignItems: 'center' },
+    addressCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#F8F9FA', borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: '#EAEAEA' },
+    addressText: { flex: 1, fontSize: 14, color: theme.colors.text, lineHeight: 20 },
+    actionCards: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+    actionCard: { flex: 1, backgroundColor: '#F8F9FA', borderRadius: 14, padding: 12, alignItems: 'center', borderWidth: 2, borderColor: '#EAEAEA' },
+    actionCardDone: { borderColor: theme.colors.success, backgroundColor: '#F0FDF4' },
+    actionCardIcon: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
+    actionCardLabel: { fontSize: 12, fontWeight: '700', color: theme.colors.text, textAlign: 'center' },
+    section: { marginBottom: 18 },
+    sectionTitle: { fontSize: 14, fontWeight: '700', color: theme.colors.text, marginBottom: 10 },
+    countRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, backgroundColor: '#F8F9FA', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#EAEAEA' },
+    countBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, elevation: 1 },
+    countDisplay: { alignItems: 'center', minWidth: 70 },
+    countInput: { fontSize: 30, fontWeight: '800', color: theme.colors.text, textAlign: 'center', padding: 0 },
+    countUnit: { fontSize: 12, color: theme.colors.textSecondary, textTransform: 'uppercase', marginTop: 2, fontWeight: '600' },
+    paymentOption: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#F8F9FA', padding: 14, borderRadius: 12, marginBottom: 10, borderWidth: 2, borderColor: '#EAEAEA' },
+    paymentOptionSelected: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary + '08' },
+    paymentLabel: { flex: 1, fontSize: 15, color: theme.colors.text, fontWeight: '500' },
+    paymentLabelSelected: { color: theme.colors.primary, fontWeight: '700' },
+    notesInput: { backgroundColor: '#F8F9FA', borderRadius: 12, padding: 12, fontSize: 14, color: theme.colors.text, borderWidth: 1, borderColor: '#EAEAEA', minHeight: 70, textAlignVertical: 'top' },
+    sheetFooter: { padding: 16, paddingBottom: 24, borderTopWidth: 1, borderTopColor: '#F0F0F0', backgroundColor: '#fff' },
+    confirmBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.success, paddingVertical: 15, borderRadius: 14 },
+    confirmBtnDisabled: { backgroundColor: '#9CA3AF' },
+    confirmBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    stepsHint: { textAlign: 'center', fontSize: 12, color: theme.colors.textSecondary, marginTop: 8 },
 });
 
 export default DeliveryOrderScreen;

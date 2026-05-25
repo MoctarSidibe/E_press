@@ -33,16 +33,16 @@ const TrackingScreen = ({ navigation, route }) => {
         const phoneNumber = order?.driver_phone || '+237600000000';
 
         Alert.alert(
-            'Call Driver',
-            'Would you like to call your driver?',
+            'Appeler le livreur',
+            'Voulez-vous appeler votre livreur ?',
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: 'Annuler', style: 'cancel' },
                 {
-                    text: 'Call',
+                    text: 'Appeler',
                     onPress: () => {
                         Linking.openURL(`tel:${phoneNumber}`).catch(err => {
                             console.error('Failed to make call:', err);
-                            Alert.alert('Error', 'Unable to make call');
+                            Alert.alert('Erreur', 'Impossible de passer l\'appel');
                         });
                     }
                 }
@@ -57,7 +57,7 @@ const TrackingScreen = ({ navigation, route }) => {
         return (
             <View style={styles.centerContainer}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>Loading tracking info...</Text>
+                <Text style={styles.loadingText}>Chargement du suivi...</Text>
             </View>
         );
     }
@@ -79,12 +79,12 @@ const TrackingScreen = ({ navigation, route }) => {
                 // No courier assigned yet
                 <View style={styles.waitingContainer}>
                     <MaterialCommunityIcons name="clock-outline" size={64} color={theme.colors.warning} />
-                    <Text style={styles.waitingTitle}>Looking for Available Courier</Text>
+                    <Text style={styles.waitingTitle}>Recherche d'un livreur</Text>
                     <Text style={styles.waitingText}>
-                        Your order has been placed successfully. We're searching for an available courier to pick up your items.
+                        Votre commande a bien été passée. Nous recherchons un livreur disponible pour récupérer vos articles.
                     </Text>
                     <Text style={styles.waitingSubtext}>
-                        You'll be notified once a courier accepts your order.
+                        Vous serez notifié dès qu'un livreur accepte votre commande.
                     </Text>
                 </View>
             ) : (

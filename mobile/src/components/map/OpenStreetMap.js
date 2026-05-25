@@ -10,12 +10,20 @@ const OpenStreetMap = ({
     onRegionChange,
     onMapPress,
     interaction = 'static', // 'static', 'picker', 'nav'
+    mapType = 'standard',   // 'standard', 'satellite'
+    command,                // JS string to inject on change (for panning/placing markers)
     style
 }) => {
     const webViewRef = useRef(null);
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // Initial positioning
+    // Inject JS command whenever it changes (after map is loaded)
+    useEffect(() => {
+        if (command && webViewRef.current && isLoaded) {
+            webViewRef.current.injectJavaScript(command + '\ntrue;');
+        }
+    }, [command, isLoaded]);
+
     const lat = initialRegion?.latitude || 48.8566;
     const lng = initialRegion?.longitude || 2.3522;
     const zoom = 15;
@@ -38,9 +46,7 @@ const OpenStreetMap = ({
     `).join('\n');
 
     // Generate Polyline JS
-    // Support explicit polylines prop OR fallback to connecting markers if nav mode
     const polylinesJs = [];
-
     if (polylines && polylines.length > 0) {
         polylines.forEach(p => {
             const latlngs = p.coordinates.map(c => `[${c.latitude}, ${c.longitude}]`).join(',');
@@ -56,8 +62,54 @@ const OpenStreetMap = ({
             map.fitBounds(line.getBounds(), {padding: [50, 50]});
         `);
     }
-
     const finalPolylinesJs = polylinesJs.join('\n');
+
+    // For picker mode: tap-to-place draggable marker logic
+    const pickerJs = interaction === 'picker' ? `
+        var pickerMarker = null;
+
+        function placePickerMarker(lat, lng) {
+            if (pickerMarker) {
+                pickerMarker.setLatLng([lat, lng]);
+            } else {
+                pickerMarker = L.marker([lat, lng], {
+                    draggable: true,
+                    icon: L.divIcon({
+                        className: '',
+                        html: '<svg viewBox="0 0 32 42" width="32" height="42" xmlns="http://www.w3.org/2000/svg"><path d="M16 0C9.37 0 4 5.37 4 12c0 9 12 30 12 30s12-21 12-30C28 5.37 22.63 0 16 0z" fill="#00D4D4" stroke="#007a7a" stroke-width="1.5"/><circle cx="16" cy="12" r="5" fill="white"/></svg>',
+                        iconSize: [32, 42],
+                        iconAnchor: [16, 42]
+                    })
+                }).addTo(map);
+
+                pickerMarker.on('dragend', function(e) {
+                    var pos = e.target.getLatLng();
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'mapPress',
+                        latitude: pos.lat,
+                        longitude: pos.lng
+                    }));
+                });
+            }
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'mapPress',
+                latitude: lat,
+                longitude: lng
+            }));
+        }
+
+        map.on('click', function(e) {
+            placePickerMarker(e.latlng.lat, e.latlng.lng);
+        });
+    ` : `
+        map.on('click', function(e) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'mapPress',
+                latitude: e.latlng.lat,
+                longitude: e.latlng.lng
+            }));
+        });
+    `;
 
     const html = `
     <!DOCTYPE html>
@@ -68,40 +120,43 @@ const OpenStreetMap = ({
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
         <style>
-            body { margin: 0; padding: 0; }
-            #map { width: 100vw; height: 100vh; }
-            .center-marker {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -100%); /* Bottom-center of pin is target */
-                z-index: 1000;
-                pointer-events: none;
-            }
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 0; overflow: hidden; touch-action: none; }
+            #map { width: 100vw; height: 100vh; touch-action: none; }
         </style>
     </head>
     <body>
         <div id="map"></div>
-        ${interaction === 'picker' ? `<img src="https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png" class="center-marker" />` : ''}
 
         <script>
             var map = L.map('map', { zoomControl: false }).setView([${lat}, ${lng}], ${zoom});
-            
-            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
+
+            var tileUrl = '${mapType === 'satellite'
+                ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                : 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'}';
+
+            var attribution = '${mapType === 'satellite'
+                ? 'Tiles &copy; Esri'
+                : '&copy; OpenStreetMap contributors'}';
+
+            L.tileLayer(tileUrl, {
+                attribution: attribution,
+                maxZoom: 19
             }).addTo(map);
 
-            // Add markers
+            // Add static markers
             ${markersJs}
 
             // Add circles
             ${circlesJs}
 
             // Add polylines
-            // Add polylines
             ${finalPolylinesJs}
 
-            // Events
+            // Picker or static click handler
+            ${pickerJs}
+
+            // Region change
             map.on('moveend', function() {
                 var center = map.getCenter();
                 window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -110,14 +165,6 @@ const OpenStreetMap = ({
                     longitude: center.lng,
                     latitudeDelta: 0.01,
                     longitudeDelta: 0.01
-                }));
-            });
-
-            map.on('click', function(e) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'mapPress',
-                    latitude: e.latlng.lat,
-                    longitude: e.latlng.lng
                 }));
             });
         </script>
@@ -155,6 +202,14 @@ const OpenStreetMap = ({
                 onMessage={handleMessage}
                 style={styles.webview}
                 onLoadEnd={() => setIsLoaded(true)}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                scrollEnabled={false}
+                bounces={false}
+                overScrollMode="never"
+                nestedScrollEnabled={false}
+                allowsInlineMediaPlayback={true}
+                mixedContentMode="always"
             />
             {!isLoaded && (
                 <View style={styles.loading}>

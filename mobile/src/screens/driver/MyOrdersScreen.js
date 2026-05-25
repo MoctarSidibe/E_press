@@ -92,7 +92,7 @@ const MyOrdersScreen = ({ navigation }) => {
                     <View style={styles.headerRow}>
                         <Text style={styles.orderNumber}>#{item.order_number}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-                            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+                            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]} numberOfLines={1}>
                                 {item.status.replace(/_/g, ' ').toUpperCase()}
                             </Text>
                         </View>
@@ -249,16 +249,18 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 6,
+        maxWidth: 160,
+        flexShrink: 1,
     },
     statusText: {
-        fontSize: 10,
+        fontSize: 9,
         fontWeight: 'bold',
     },
     address: {
         fontSize: 14,
         color: theme.colors.textSecondary,
         marginBottom: 10,
-        height: 40, // Fixed height for 2 lines
+        minHeight: 20,
     },
     footerRow: {
         flexDirection: 'row',

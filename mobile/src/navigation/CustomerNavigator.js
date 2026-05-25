@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +15,11 @@ import NewOrderScreen from '../screens/customer/NewOrderScreen';
 import OrderDetailsScreen from '../screens/customer/OrderDetailsScreen';
 import TrackingScreen from '../screens/customer/TrackingScreen';
 import CourierMapScreen from '../screens/customer/CourierMapScreen';
+import PointsHistoryScreen from '../screens/customer/PointsHistoryScreen';
+import OfflineOrderConfirmScreen from '../screens/customer/OfflineOrderConfirmScreen';
+import AddressesScreen from '../screens/customer/AddressesScreen';
+import AddressFormScreen from '../screens/customer/AddressFormScreen';
+import OfflineBanner from '../components/OfflineBanner';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -68,13 +74,20 @@ const CustomerTabs = () => {
 
 const CustomerNavigator = () => {
     return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
-            <Stack.Screen name="NewOrder" component={NewOrderScreen} />
-            <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
-            <Stack.Screen name="Tracking" component={TrackingScreen} />
-            <Stack.Screen name="CourierMap" component={CourierMapScreen} />
-        </Stack.Navigator>
+        <View style={{ flex: 1 }}>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
+                <Stack.Screen name="NewOrder" component={NewOrderScreen} />
+                <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
+                <Stack.Screen name="Tracking" component={TrackingScreen} />
+                <Stack.Screen name="CourierMap" component={CourierMapScreen} />
+                <Stack.Screen name="PointsHistory" component={PointsHistoryScreen} />
+                <Stack.Screen name="OfflineOrderConfirm" component={OfflineOrderConfirmScreen} />
+                <Stack.Screen name="Addresses" component={AddressesScreen} />
+                <Stack.Screen name="AddressForm" component={AddressFormScreen} />
+            </Stack.Navigator>
+            <OfflineBanner />
+        </View>
     );
 };
 

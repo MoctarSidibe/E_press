@@ -146,10 +146,6 @@ export const useReceiptPDF = () => {
                             <span>${parseFloat(expressFee).toFixed(0)} Fcfa</span>
                         </div>
                         ` : ''}
-                        <div class="total-row">
-                            <span>Tax (10%)</span>
-                            <span>${parseFloat(tax).toFixed(0)} Fcfa</span>
-                        </div>
                         <div class="total-row final">
                             <span>Total Amount</span>
                             <span>${parseFloat(total).toFixed(0)} Fcfa</span>

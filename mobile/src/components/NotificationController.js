@@ -11,14 +11,19 @@ const NotificationController = () => {
     useEffect(() => {
         if (!user) return;
 
-        // request permissions on mount
+        // Permissions + (real) push-token register. Skipped in Expo Go.
         notificationService.registerForPushNotificationsAsync();
+
+        // Open the Socket.IO connection for this session. Previously dead code
+        // never called connect(), so socket-based notifications didn't work at
+        // all. Now also properly torn down in the cleanup below.
+        socketService.connect();
 
         const handleNewPickup = (data) => {
             if (user.role === 'driver') {
                 notificationService.scheduleNotification(
-                    'New Pickup Available 📦',
-                    `Order #${data.order_number} is ready for pickup at ${data.pickup_address}`
+                    'Nouvelle collecte disponible 📦',
+                    `Commande #${data.order_number} prête à collecter${data.pickup_address ? ` (${data.pickup_address})` : ''}`
                 );
             }
         };
@@ -26,26 +31,26 @@ const NotificationController = () => {
         const handleNewDelivery = (data) => {
             if (user.role === 'driver') {
                 notificationService.scheduleNotification(
-                    'New Delivery Available 🚚',
-                    `Order #${data.order_number} is ready for delivery to ${data.customer_name}`
+                    'Nouvelle livraison disponible 🚚',
+                    `Commande #${data.order_number} prête à livrer${data.customer_name ? ` à ${data.customer_name}` : ''}`
                 );
             }
         };
 
         const handleStatusUpdate = (data) => {
             if (user.role === 'customer') {
-                // Map status to friendly text
-                let statusText = data.status;
-                if (data.status === 'picked_up') statusText = 'picked up';
-                if (data.status === 'in_facility') statusText = 'arrived at facility';
-                if (data.status === 'cleaning') statusText = 'being cleaned';
-                if (data.status === 'ready') statusText = 'ready for delivery';
-                if (data.status === 'out_for_delivery') statusText = 'out for delivery';
-                if (data.status === 'delivered') statusText = 'delivered';
-
+                const labels = {
+                    picked_up:        'collectée',
+                    in_facility:      'arrivée à la laverie',
+                    cleaning:         'en nettoyage',
+                    ready:            'prête à la livraison',
+                    out_for_delivery: 'en livraison',
+                    delivered:        'livrée',
+                };
+                const label = labels[data.status] || data.status;
                 notificationService.scheduleNotification(
-                    'Order Update 🔔',
-                    `Your order #${data.orderId.substring(0, 8)}... is now ${statusText}`
+                    'Mise à jour de commande 🔔',
+                    `Votre commande #${String(data.orderId).substring(0, 8)}… est ${label}`
                 );
             }
         };
@@ -53,26 +58,26 @@ const NotificationController = () => {
         const handleOrderAccepted = (data) => {
             if (user.role === 'customer') {
                 notificationService.scheduleNotification(
-                    'Driver Assigned 👤',
-                    `${data.courierName} has accepted your order`
+                    'Livreur attribué 👤',
+                    `${data.courierName || 'Un livreur'} a accepté votre commande`
                 );
             }
         };
 
-        // Register listeners
         socketService.onNewPickupAvailable(handleNewPickup);
         socketService.onNewDeliveryAvailable(handleNewDelivery);
         socketService.onOrderStatusUpdated(handleStatusUpdate);
         socketService.onOrderAccepted(handleOrderAccepted);
 
+        // Cleanup runs on logout AND on user-change. Without this, listeners
+        // stacked up across re-renders and the socket stayed open after logout.
         return () => {
-            // Clean up is complex because socketService.off logic is simple and might remove other listeners
-            // But for now, since this component is at App level, it unmounts only on logout/close
-            // We can leave it active or rely on socketService implementation
+            socketService.removeAllListeners();
+            socketService.disconnect();
         };
     }, [user]);
 
-    return null; // This component handles logic only, no UI
+    return null; // No UI — logic only.
 };
 
 export default NotificationController;

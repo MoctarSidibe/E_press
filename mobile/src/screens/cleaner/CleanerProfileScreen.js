@@ -1,9 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import LottieView from 'lottie-react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import { displayIdentity } from '../../utils/userIdentity';
 import theme from '../../theme/theme';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+
+const TEAL = '#00D4D4';
+const LAVERIE_BG = '#05121f';
 
 const CleanerProfileScreen = () => {
     const { t } = useTranslation();
@@ -14,136 +19,142 @@ const CleanerProfileScreen = () => {
             t('customer.profile.logout'),
             t('customer.profile.confirmLogout'),
             [
-                {
-                    text: t('common.cancel'),
-                    style: 'cancel',
-                },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
                     text: t('customer.profile.logout'),
                     style: 'destructive',
                     onPress: async () => {
-                        try {
-                            await logout();
-                        } catch (error) {
-                            console.error('Logout error:', error);
-                            Alert.alert(t('common.error'), t('errors.generic'));
-                        }
+                        try { await logout(); } catch (e) { Alert.alert(t('common.error'), t('errors.generic')); }
                     },
                 },
             ]
         );
     };
 
+    const kyc = user?.kycStatus || 'not_submitted';
+    const kycCfg = {
+        approved:      { icon: 'check-decagram', bg: '#10B981', label: t('kyc.labels.approved') },
+        pending:       { icon: 'clock-outline',  bg: '#F59E0B', label: t('kyc.labels.pending') },
+        rejected:      { icon: 'alert-circle',   bg: '#EF4444', label: t('kyc.labels.rejected') },
+        not_submitted: { icon: 'shield-off',      bg: '#6B7280', label: t('kyc.labels.notSubmitted') },
+    }[kyc] || { icon: 'shield-off', bg: '#6B7280', label: kyc };
+
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>{t('cleaner.profile.title')}</Text>
-            </View>
-
-            <View style={styles.content}>
-                <View style={styles.profileCard}>
-                    <View style={styles.avatarContainer}>
-                        <MaterialCommunityIcons name="account-circle" size={80} color={theme.colors.primary} />
+            {/* Hero header */}
+            <View style={styles.hero}>
+                <LottieView
+                    source={require('../../../assets/lotties/laundry.json')}
+                    autoPlay loop
+                    style={styles.lottie}
+                    resizeMode="contain"
+                />
+                <View style={styles.heroOverlay}>
+                    {/* Laverie label */}
+                    <View style={styles.laverieTag}>
+                        <MaterialCommunityIcons name="washing-machine" size={14} color={TEAL} />
+                        <Text style={styles.laverieTagText}>LAVERIE</Text>
                     </View>
-                    <Text style={styles.userName}>{user?.name || user?.fullName || t('cleaner.profile.cleaner')}</Text>
-                    <Text style={styles.userEmail}>{user?.email || t('cleaner.profile.noEmail')}</Text>
-                    <View style={styles.roleBadge}>
-                        <Text style={styles.roleText}>{(user?.role || 'cleaner').toUpperCase()}</Text>
+
+                    <View style={styles.avatarRing}>
+                        <MaterialCommunityIcons name="account" size={36} color="#fff" />
+                    </View>
+                    <Text style={styles.name}>{user?.name || user?.full_name || 'Agent Laverie'}</Text>
+                    <Text style={styles.email}>{displayIdentity(user)}</Text>
+
+                    <View style={styles.badgeRow}>
+                        <View style={styles.rolePill}>
+                            <MaterialCommunityIcons name="washing-machine" size={13} color={TEAL} />
+                            <Text style={styles.rolePillText}>Laverie</Text>
+                        </View>
+                        <View style={[styles.kycBadge, { backgroundColor: kycCfg.bg }]}>
+                            <MaterialCommunityIcons name={kycCfg.icon} size={13} color="#fff" />
+                            <Text style={styles.kycBadgeText}>{kycCfg.label}</Text>
+                        </View>
                     </View>
                 </View>
+            </View>
 
+            {/* Body */}
+            <View style={styles.body}>
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                    <MaterialCommunityIcons name="logout" size={24} color="#FFF" style={styles.logoutIcon} />
+                    <MaterialCommunityIcons name="logout" size={20} color="#fff" />
                     <Text style={styles.logoutText}>{t('customer.profile.logout')}</Text>
                 </TouchableOpacity>
+                <Text style={styles.version}>Version 1.0.0</Text>
             </View>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    container: { flex: 1, backgroundColor: theme.colors.background },
+
+    hero: {
+        height: 290,
+        backgroundColor: LAVERIE_BG,
+        overflow: 'hidden',
+    },
+    lottie: {
+        position: 'absolute',
+        width: '130%',
+        height: '130%',
+        left: '-15%',
+        top: '-15%',
+    },
+    heroOverlay: {
         flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    header: {
-        padding: 20,
-        backgroundColor: theme.colors.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
-        paddingTop: 60, // approximate status bar height
+        backgroundColor: 'rgba(5,18,31,0.55)',
         alignItems: 'center',
+        justifyContent: 'flex-end',
+        paddingBottom: 24,
+        paddingTop: 44,
     },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: theme.colors.textPrimary,
+
+    laverieTag: {
+        flexDirection: 'row', alignItems: 'center', gap: 5,
+        backgroundColor: 'rgba(0,212,212,0.12)',
+        borderWidth: 1, borderColor: 'rgba(0,212,212,0.5)',
+        paddingHorizontal: 12, paddingVertical: 4,
+        borderRadius: 20, marginBottom: 12,
     },
-    content: {
-        flex: 1,
-        padding: 20,
-        alignItems: 'center',
-        paddingTop: 40,
+    laverieTagText: { color: TEAL, fontWeight: '800', fontSize: 11, letterSpacing: 2 },
+
+    avatarRing: {
+        width: 72, height: 72, borderRadius: 36,
+        backgroundColor: 'rgba(0,212,212,0.25)',
+        borderWidth: 2, borderColor: TEAL,
+        justifyContent: 'center', alignItems: 'center',
+        marginBottom: 10,
     },
-    profileCard: {
-        backgroundColor: theme.colors.surface,
-        padding: 30,
-        borderRadius: 12,
-        width: '100%',
-        alignItems: 'center',
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 3.84,
-        elevation: 5,
-        marginBottom: 40,
-    },
-    avatarContainer: {
-        marginBottom: 15,
-    },
-    userName: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: theme.colors.textPrimary,
-        marginBottom: 5,
-    },
-    userEmail: {
-        fontSize: 16,
-        color: theme.colors.textSecondary,
-        marginBottom: 15,
-    },
-    roleBadge: {
-        backgroundColor: theme.colors.primary + '20', // 20% opacity
-        paddingVertical: 5,
-        paddingHorizontal: 15,
+    name:  { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 2 },
+    email: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10 },
+
+    badgeRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+    rolePill: {
+        flexDirection: 'row', alignItems: 'center', gap: 5,
+        backgroundColor: 'rgba(0,212,212,0.15)',
+        borderWidth: 1, borderColor: TEAL,
+        paddingHorizontal: 10, paddingVertical: 4,
         borderRadius: 20,
     },
-    roleText: {
-        color: theme.colors.primary,
-        fontWeight: 'bold',
-        fontSize: 14,
+    rolePillText: { color: TEAL, fontWeight: '700', fontSize: 12 },
+    kycBadge: {
+        flexDirection: 'row', alignItems: 'center', gap: 5,
+        paddingHorizontal: 10, paddingVertical: 4,
+        borderRadius: 20,
     },
+    kycBadgeText: { color: '#fff', fontWeight: '600', fontSize: 12 },
+
+    body: { flex: 1, padding: 24 },
     logoutButton: {
-        flexDirection: 'row',
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
         backgroundColor: theme.colors.error,
-        paddingVertical: 15,
-        paddingHorizontal: 40,
-        borderRadius: 25,
-        alignItems: 'center',
-        width: '100%',
-        justifyContent: 'center',
+        paddingVertical: 14, borderRadius: 12,
+        gap: 8,
     },
-    logoutIcon: {
-        marginRight: 10,
-    },
-    logoutText: {
-        color: '#FFF',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
+    logoutText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+    version: { textAlign: 'center', marginTop: 20, color: theme.colors.textTertiary, fontSize: 12 },
 });
 
 export default CleanerProfileScreen;

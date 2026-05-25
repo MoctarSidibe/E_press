@@ -1,7 +1,7 @@
 import io from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Production server URL (matching the API configuration)
+// Production server URL (matching the API configuration in api.js)
 const DEFAULT_SOCKET_URL = 'http://161.97.66.69';
 const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL
     || process.env.EXPO_PUBLIC_API_URL?.replace('/api', '')
@@ -21,13 +21,24 @@ class SocketService {
             const token = await AsyncStorage.getItem('auth_token');
             const user = JSON.parse(await AsyncStorage.getItem('user'));
 
-            // Connect to backend Socket.IO server
+            // Idempotent — once a socket instance exists, leave it alone. This
+            // covers both "already connected" and "in-flight handshake". Previous
+            // version disconnected mid-handshake, leading to the double-connect
+            // we saw in the logs (two different socket IDs back-to-back). To
+            // reconnect with new auth, callers must call disconnect() first.
+            if (this.socket) return;
+
+            // Connect to backend Socket.IO server. Bound reconnection so we don't
+            // burn battery hammering the server forever when it's unreachable.
             console.log(`[Socket.IO] Connecting to ${SOCKET_URL}`);
             this.socket = io(SOCKET_URL, {
                 transports: ['websocket'],
-                auth: {
-                    token
-                }
+                auth: { token },
+                reconnection: true,
+                reconnectionAttempts: 5,           // cap total retries
+                reconnectionDelay: 1000,           // start at 1s
+                reconnectionDelayMax: 15000,       // cap exponential backoff at 15s
+                timeout: 8000,                     // give up a single attempt after 8s
             });
 
             this.socket.on('connect', () => {

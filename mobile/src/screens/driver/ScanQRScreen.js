@@ -16,7 +16,7 @@ import { ordersAPI } from '../../services/api';
 import theme from '../../theme/theme';
 
 const ScanQRScreen = ({ navigation, route }) => {
-    const { orderId: initialOrderId, checkpoint: initialCheckpoint } = route.params || {};
+    const { orderId: initialOrderId, checkpoint: initialCheckpoint, onScan } = route.params || {};
 
     const [hasPermission, setHasPermission] = useState(null);
     const [scanned, setScanned] = useState(false);
@@ -42,15 +42,23 @@ const ScanQRScreen = ({ navigation, route }) => {
 
         try {
             const parsed = JSON.parse(data);
+
+            // Callback mode: parent screen handles the result, just verify and return
+            if (onScan) {
+                onScan(parsed);
+                navigation.goBack();
+                return;
+            }
+
             setScannedData(parsed);
 
             Alert.alert(
-                'QR Code Scanned!',
-                `Order #${parsed.num || parsed.order_number || 'Unknown'}`,
+                'QR Code Scanné !',
+                `Commande #${parsed.num || parsed.order_number || 'Inconnue'}`,
                 [{ text: 'OK' }]
             );
         } catch (error) {
-            Alert.alert('Invalid QR Code', 'This QR code is not a valid E-Press order code');
+            Alert.alert('QR Code invalide', 'Ce QR code n\'est pas un code E-Press valide');
             setScanned(false);
         }
     };

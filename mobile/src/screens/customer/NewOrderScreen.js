@@ -16,26 +16,126 @@ import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { WebView } from 'react-native-webview';
-import OpenStreetMap from '../../components/map/OpenStreetMap';
+import NativeMapPicker from '../../components/map/NativeMapPicker';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
-import { categoriesAPI, ordersAPI, locationsAPI } from '../../services/api';
-import { getClothingIcon } from '../../config/icons';
+import { categoriesAPI, ordersAPI, locationsAPI, couponsAPI, pointsAPI, API_BASE } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { isOnline } from '../../services/syncService';
+import { buildOfflineOrder, buildOfflineQRContent } from '../../utils/orderCode';
+import { saveOfflineOrder } from '../../db/localDB';
 import theme from '../../theme/theme';
+
+// ─── GIF icon map (mirrors HomeScreen / GuestHomeScreen) ──────────────────────
+const GIF_ICONS = {
+    'human-male':           require('../../../assets/images/ensemble Homme.gif'),
+    'human-female':         require('../../../assets/images/ensemble Dame.gif'),
+    'human':                require('../../../assets/images/debardeur.gif'),
+    'briefcase':            require('../../../assets/images/suit.gif'),
+    'tshirt-crew':          require('../../../assets/images/t-shirt.gif'),
+    'tshirt-crew-outline':  require('../../../assets/images/long-sleeves.gif'),
+    'underwear':            require('../../../assets/images/short.gif'),
+    'coat':                 require('../../../assets/images/peignoir-de-bain.gif'),
+    'towel':                require('../../../assets/images/towels.gif'),
+    'shirt':                require('../../../assets/images/shirt.gif'),
+    't-shirt':              require('../../../assets/images/t-shirt.gif'),
+    'polo':                 require('../../../assets/images/polo.gif'),
+    'vest':                 require('../../../assets/images/vest.gif'),
+    'long-sleeves':         require('../../../assets/images/long-sleeves.gif'),
+    'sweater':              require('../../../assets/images/sweater.gif'),
+    'hoodie':               require('../../../assets/images/hoodie.gif'),
+    'jacket':               require('../../../assets/images/jacket.gif'),
+    'leather':              require('../../../assets/images/leather-jacket.gif'),
+    'pants':                require('../../../assets/images/pants.gif'),
+    'short':                require('../../../assets/images/short.gif'),
+    'skirt':                require('../../../assets/images/skirt.gif'),
+    'dress':                require('../../../assets/images/dress.gif'),
+    'suit':                 require('../../../assets/images/suit.gif'),
+    'tuxedo':               require('../../../assets/images/tuxedo.gif'),
+    'coverall':             require('../../../assets/images/coverall.gif'),
+    'clothes':              require('../../../assets/images/clothes.gif'),
+    'towels':               require('../../../assets/images/towels.gif'),
+    'bed':                  require('../../../assets/images/bed.gif'),
+    'curtain':              require('../../../assets/images/curtain.gif'),
+    'socks':                require('../../../assets/images/socks.gif'),
+    'bra':                  require('../../../assets/images/bra.gif'),
+    'bikini':               require('../../../assets/images/bikini.gif'),
+    'boxer':                require('../../../assets/images/boxer-shorts.gif'),
+    'ensemble-dame':        require('../../../assets/images/ensemble Dame.gif'),
+    'ensemble-homme':       require('../../../assets/images/ensemble Homme.gif'),
+    'debardeur':            require('../../../assets/images/debardeur.gif'),
+    'pantalon-dame':        require('../../../assets/images/pantalon dame.gif'),
+    'jupe-plisse':          require('../../../assets/images/jupe plisse.gif'),
+    'robe-simple':          require('../../../assets/images/robe simple.gif'),
+    'robe-de-mariee':       require('../../../assets/images/robe de mariage.gif'),
+    'robe-soiree':          require('../../../assets/images/robe de soirée.gif'),
+    'peignoir':             require('../../../assets/images/peignoir-de-bain.gif'),
+    'paire-de-drap':        require('../../../assets/images/Paire de drap.gif'),
+    'customs-officer':      require('../../../assets/images/customs-officer.gif'),
+};
+const DEFAULT_GIF = require('../../../assets/images/clothes.gif');
+
+
+const getGif = (iconName, categoryName, gifUrl) => {
+    if (gifUrl) return { uri: `${API_BASE}${gifUrl}` };
+    const n = (categoryName || '').toLowerCase();
+    if (n.includes('mariage'))                              return GIF_ICONS['robe-de-mariee'];
+    if (n.includes('soirée') || n.includes('soiree'))      return GIF_ICONS['robe-soiree'];
+    if (n.includes('robe'))                                 return GIF_ICONS['robe-simple'];
+    if (n.includes('ensemble') && n.includes('homme'))      return GIF_ICONS['ensemble-homme'];
+    if (n.includes('ensemble') && n.includes('dame'))       return GIF_ICONS['ensemble-dame'];
+    if (n.includes('ensemble'))                             return GIF_ICONS['ensemble-homme'];
+    if (n.includes('pantalon') && n.includes('dame'))       return GIF_ICONS['pantalon-dame'];
+    if (n.includes('jupe') && n.includes('pliss'))          return GIF_ICONS['jupe-plisse'];
+    if (n.includes('paire') && n.includes('drap'))          return GIF_ICONS['paire-de-drap'];
+    if (n.includes('peignoir'))                             return GIF_ICONS['peignoir'];
+    if (n.includes('combinaison'))                          return GIF_ICONS['coverall'];
+    if (n.includes('costume'))                              return GIF_ICONS['suit'];
+    if (n.includes('tenue'))                                return GIF_ICONS['customs-officer'];
+    if (n.includes('cuir'))                                 return GIF_ICONS['leather'];
+    if (n.includes('débardeur') || n.includes('debardeur')) return GIF_ICONS['debardeur'];
+    if (n.includes('chemise'))                              return GIF_ICONS['shirt'];
+    if (n.includes('blouson') || n.includes('veste'))       return GIF_ICONS['jacket'];
+    if (n.includes('jupe'))                                 return GIF_ICONS['skirt'];
+    if (n.includes('pantalon'))                             return GIF_ICONS['pants'];
+    if (n.includes('culotte'))                              return GIF_ICONS['short'];
+    if (n.includes('drap') || n.includes('couvre'))         return GIF_ICONS['bed'];
+    if (n.includes('serviette'))                            return GIF_ICONS['towels'];
+    if (n.includes('rideau'))                               return GIF_ICONS['curtain'];
+    if (!iconName) return DEFAULT_GIF;
+    const key = iconName.toLowerCase();
+    if (GIF_ICONS[key]) return GIF_ICONS[key];
+    const found = Object.keys(GIF_ICONS).find(k => key.includes(k) || k.includes(key));
+    return found ? GIF_ICONS[found] : DEFAULT_GIF;
+};
 import PhotoCapture from '../../components/PhotoCapture';
 import { useReceiptPDF } from '../../hooks/useReceiptPDF';
 import OrderReceipt from '../../components/OrderReceipt';
 
 const NewOrderScreen = ({ navigation, route }) => {
     const { t } = useTranslation();
+    const { user } = useAuth();
     const [step, setStep] = useState(1); // 1: Items, 2: Locations, 3: Schedule, 4: Payment
     const [categories, setCategories] = useState([]);
     const [groupedItems, setGroupedItems] = useState({});
     const [locations, setLocations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+
+    // Coupon state
+    const [couponCode, setCouponCode] = useState('');
+    const [couponResult, setCouponResult] = useState(null); // { valid, discountAmount, coupon }
+    const [couponLoading, setCouponLoading] = useState(false);
+    const [couponError, setCouponError] = useState(null);
+
+    // Points redemption state
+    const [userPoints, setUserPoints] = useState(user?.pointsBalance || 0);
+    const [pointsToRedeem, setPointsToRedeem] = useState(0);
+    const [pointsValueFcfa, setPointsValueFcfa] = useState(5);
+    const [minRedemptionPoints, setMinRedemptionPoints] = useState(100);
+    const [maxRedemptionPercent, setMaxRedemptionPercent] = useState(50);
+    const [expressPercentage, setExpressPercentage] = useState(20);
 
     // Order data
     const [orderData, setOrderData] = useState({
@@ -47,6 +147,8 @@ const NewOrderScreen = ({ navigation, route }) => {
         isExpress: false,
         specialInstructions: '',
         paymentMethod: 'cash',
+        couponCode: null,
+        pointsToRedeem: 0,
     });
 
     // Add Location State
@@ -61,6 +163,12 @@ const NewOrderScreen = ({ navigation, route }) => {
     const [mapRegion, setMapRegion] = useState(null);
     const [markerCoordinate, setMarkerCoordinate] = useState(null);
     const [fetchingLocation, setFetchingLocation] = useState(false);
+    const [mapType, setMapType] = useState('standard');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [reverseGeocoding, setReverseGeocoding] = useState(false);
+    const searchTimerRef = useRef(null);
 
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
@@ -98,7 +206,58 @@ const NewOrderScreen = ({ navigation, route }) => {
 
     useEffect(() => {
         loadData();
+        loadPointsBalance();
     }, []);
+
+    const loadPointsBalance = async () => {
+        try {
+            const res = await pointsAPI.getBalance();
+            setUserPoints(res.data.pointsBalance || 0);
+            setPointsValueFcfa(res.data.pointsValueFcfa || 5);
+            setMinRedemptionPoints(res.data.minRedemptionPoints || 100);
+            setMaxRedemptionPercent(res.data.maxRedemptionPercent || 50);
+            setExpressPercentage(res.data.expressPercentage ?? 20);
+        } catch (e) {
+            // non-fatal
+        }
+    };
+
+    const validateCoupon = async () => {
+        if (!couponCode.trim()) return;
+        setCouponLoading(true);
+        setCouponError(null);
+        setCouponResult(null);
+        try {
+            const pricing = calculateTotal();
+            const res = await couponsAPI.validate(couponCode.trim(), pricing.total * 100);
+            setCouponResult(res.data);
+            setOrderData(prev => ({ ...prev, couponCode: couponCode.trim() }));
+        } catch (e) {
+            setCouponError(e.response?.data?.error || 'Invalid coupon code');
+            setOrderData(prev => ({ ...prev, couponCode: null }));
+        } finally {
+            setCouponLoading(false);
+        }
+    };
+
+    const removeCoupon = () => {
+        setCouponCode('');
+        setCouponResult(null);
+        setCouponError(null);
+        setOrderData(prev => ({ ...prev, couponCode: null }));
+    };
+
+    const handlePointsChange = (val) => {
+        const { subtotal, deliveryFee, expressFee } = calculateTotal();
+        const orderTotal = subtotal + deliveryFee + expressFee;
+        // Max redeemable = min(user balance, cap by max_redemption_percent of order)
+        const maxFcfa = orderTotal * maxRedemptionPercent / 100;
+        const maxByPercent = Math.floor(maxFcfa / (pointsValueFcfa / 100));
+        const maxPts = Math.min(userPoints, maxByPercent);
+        const pts = Math.min(Math.max(0, parseInt(val) || 0), maxPts);
+        setPointsToRedeem(pts);
+        setOrderData(prev => ({ ...prev, pointsToRedeem: pts }));
+    };
 
     // Handle auto-selection from params
     useEffect(() => {
@@ -147,21 +306,24 @@ const NewOrderScreen = ({ navigation, route }) => {
             ]);
             setCategories(categoriesRes.data);
 
-            // Group data
-            const groups = {
-                'Clothing': [],
-                'Household': [],
-                'Accessories': []
+            // Group data by French barème categories
+            const groupsConfig = {
+                'Ensembles & Professionnel': ['ensemble', 'costume', 'combinaison'],
+                'Vêtements':                 ['chemise', 'haut', 't-shirt', 'polo', 'débardeur', 'pantalon', 'jupe', 'culotte', 'robe', 'blouson', 'peignoir'],
+                'Linge de maison':           ['drap', 'couvre', 'serviette', 'rideau'],
             };
+            const groups = Object.fromEntries(Object.keys(groupsConfig).map(k => [k, []]));
             categoriesRes.data.forEach(cat => {
                 const name = cat.name.toLowerCase();
-                if (name.includes('sheet') || name.includes('towel') || name.includes('blanket') || name.includes('pillow') || name.includes('curtain')) {
-                    groups['Household'].push(cat);
-                } else if (name.includes('tie') || name.includes('security')) {
-                    groups['Accessories'].push(cat);
-                } else {
-                    groups['Clothing'].push(cat);
+                let placed = false;
+                for (const [groupKey, keywords] of Object.entries(groupsConfig)) {
+                    if (keywords.some(kw => name.includes(kw))) {
+                        groups[groupKey].push(cat);
+                        placed = true;
+                        break;
+                    }
                 }
+                if (!placed) groups['Vêtements'].push(cat);
             });
             setGroupedItems(groups);
 
@@ -287,17 +449,20 @@ const NewOrderScreen = ({ navigation, route }) => {
         orderData.items.forEach(item => {
             const category = categories.find(c => c.id === item.categoryId);
             if (category) {
-                const price = orderData.isExpress ? category.express_price : category.base_price;
-                subtotal += price * item.quantity;
+                subtotal += category.base_price * item.quantity;
             }
         });
 
         const deliveryFee = 2.00;
-        const expressFee = orderData.isExpress ? subtotal * 0.2 : 0;
-        const tax = (subtotal + deliveryFee + expressFee) * 0.1;
-        const total = subtotal + deliveryFee + expressFee + tax;
+        const expressFee = orderData.isExpress ? subtotal * (expressPercentage / 100) : 0;
+        const beforeDiscount = subtotal + deliveryFee + expressFee;
+        const pointsDiscount = Math.min(
+            pointsToRedeem * pointsValueFcfa / 100, // convert to same unit (prices are in centimes / 100)
+            beforeDiscount * maxRedemptionPercent / 100
+        );
+        const total = Math.max(0, beforeDiscount - pointsDiscount);
 
-        return { subtotal, deliveryFee, expressFee, tax, total };
+        return { subtotal, deliveryFee, expressFee, pointsDiscount, total };
     };
 
     const { downloadPDF } = useReceiptPDF();
@@ -342,6 +507,63 @@ const NewOrderScreen = ({ navigation, route }) => {
 
         setSubmitting(true);
 
+        // ── OFFLINE FALLBACK ──────────────────────────────────────────────
+        if (!isOnline()) {
+            try {
+                const pickupLoc   = locations.find(l => l.id === orderData.pickupLocationId);
+                const deliveryLoc = locations.find(l => l.id === orderData.deliveryLocationId);
+
+                const offlinePayload = {
+                    items:            orderData.items,
+                    pickup_address:   pickupLoc?.address  || pickupLoc?.label  || '',
+                    delivery_address: deliveryLoc?.address || deliveryLoc?.label || '',
+                    pickup_lat:       pickupLoc?.latitude  || null,
+                    pickup_lng:       pickupLoc?.longitude || null,
+                    is_express:       orderData.isExpress,
+                    payment_method:   orderData.paymentMethod,
+                    special_instructions: orderData.specialInstructions,
+                    total_amount:     0,  // recalculated server-side on sync
+                };
+
+                const { payload, sig, client_code, client_nonce } =
+                    await buildOfflineOrder(offlinePayload, user.id);
+
+                const localId  = crypto.randomUUID();
+                const qrContent = await buildOfflineQRContent(localId, payload, sig);
+
+                saveOfflineOrder({
+                    id: localId, client_code, client_nonce, sig,
+                    user_id: user.id, payload, qr_content: qrContent,
+                });
+
+                setSubmitting(false);
+
+                Alert.alert(
+                    t('offlineOrder.alert.title'),
+                    t('offlineOrder.alert.message', { code: client_code }),
+                    [
+                        {
+                            text: t('offlineOrder.alert.viewQr'),
+                            onPress: () => navigation.navigate('OfflineOrderConfirm', {
+                                client_code, qr_content: qrContent, local_id: localId,
+                            }),
+                        },
+                        {
+                            text: t('offlineOrder.alert.home'),
+                            style: 'cancel',
+                            onPress: () => { resetForm(); navigation.navigate('Home'); },
+                        },
+                    ]
+                );
+                return;
+            } catch (offlineErr) {
+                setSubmitting(false);
+                Alert.alert('Erreur', `Impossible de sauvegarder la commande hors ligne : ${offlineErr.message}`);
+                return;
+            }
+        }
+        // ── END OFFLINE FALLBACK ──────────────────────────────────────────
+
         try {
             // Include photos and comments in order data
             const orderPayload = {
@@ -383,15 +605,15 @@ const NewOrderScreen = ({ navigation, route }) => {
 
             // Show success alert with Direct PDF option
             Alert.alert(
-                'Order Placed Successfully!',
-                `Your order #${newOrder.order_number} has been created.`,
+                'Commande passée avec succès !',
+                `Votre commande #${newOrder.order_number} a été créée.`,
                 [
                     {
-                        text: 'View Receipt',
+                        text: 'Voir le reçu',
                         onPress: () => setShowReceipt(true)
                     },
                     {
-                        text: 'Download PDF',
+                        text: 'Télécharger le PDF',
                         onPress: async () => {
                             await downloadPDF(newOrder);
                             resetForm();
@@ -399,7 +621,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                         }
                     },
                     {
-                        text: 'Go Home',
+                        text: 'Accueil',
                         style: 'cancel',
                         onPress: () => {
                             resetForm();
@@ -412,7 +634,7 @@ const NewOrderScreen = ({ navigation, route }) => {
         } catch (error) {
             console.error('[NewOrderScreen] Order submission error:', error);
             console.error('[NewOrderScreen] Error details:', JSON.stringify(error.response?.data, null, 2));
-            Alert.alert('Error', error.response?.data?.error || error.message || 'Failed to create order');
+            Alert.alert('Erreur', error.response?.data?.error || error.message || 'Impossible de créer la commande');
         } finally {
             setSubmitting(false);
         }
@@ -561,6 +783,15 @@ const NewOrderScreen = ({ navigation, route }) => {
     const getCurrentLocation = async () => {
         setFetchingLocation(true);
         try {
+            // Pre-check permission so we never call getCurrentPositionAsync
+            // without authorization (that throws a noisy "Not authorized" error).
+            // User can still tap the map manually to set the location.
+            const perm = await Location.getForegroundPermissionsAsync();
+            if (perm.status !== 'granted') {
+                console.warn('[Location] permission not granted — skipping GPS fetch');
+                return;
+            }
+
             const location = await Location.getCurrentPositionAsync({
                 accuracy: Location.Accuracy.Balanced
             });
@@ -586,12 +817,19 @@ const NewOrderScreen = ({ navigation, route }) => {
             // Auto-fill address via reverse geocoding
             reverseGeocode(coords);
         } catch (error) {
-            console.error('Location error:', error);
-            Alert.alert(
-                t('customer.newOrder.locationError'),
-                t('customer.newOrder.locationErrorMessage'),
-                [{ text: t('common.ok') }]
-            );
+            // Permission errors are normal user behavior — warn, no alert.
+            // Real failures (GPS disabled, timeout) still surface in the Alert.
+            const isPermissionError = /authorized|permission/i.test(error?.message || '');
+            if (isPermissionError) {
+                console.warn('[Location] denied:', error.message);
+            } else {
+                console.warn('[Location] failed:', error.message);
+                Alert.alert(
+                    t('customer.newOrder.locationError'),
+                    t('customer.newOrder.locationErrorMessage'),
+                    [{ text: t('common.ok') }]
+                );
+            }
         } finally {
             setFetchingLocation(false);
         }
@@ -629,20 +867,98 @@ const NewOrderScreen = ({ navigation, route }) => {
     };
 
     const handleMapPress = (event) => {
-        const coordinate = event.nativeEvent.coordinate;
+        const coordinate = event.nativeEvent?.coordinate || event;
         setMarkerCoordinate(coordinate);
-        reverseGeocode(coordinate);
+        handleMapTap(coordinate);
     };
 
     const handleMarkerDragEnd = (event) => {
-        const coordinate = event.nativeEvent.coordinate;
+        const coordinate = event.nativeEvent?.coordinate || event;
         setMarkerCoordinate(coordinate);
-        reverseGeocode(coordinate);
+        handleMapTap(coordinate);
+    };
+
+    // Called when user taps the map — reverse geocodes via expo-location (no external API, no 403)
+    const handleMapTap = async (coords) => {
+        if (!coords || typeof coords.latitude !== 'number') return;
+        setMarkerCoordinate(coords);
+        setReverseGeocoding(true);
+        try {
+            const result = await Location.reverseGeocodeAsync(coords);
+            if (result?.[0]) {
+                const r = result[0];
+                const parts = [r.name, r.street, r.district, r.subregion, r.city, r.region, r.country]
+                    .filter(Boolean);
+                // Deduplicate consecutive identical parts
+                const deduped = parts.filter((p, i) => p !== parts[i - 1]);
+                const address = deduped.join(', ');
+                setNewLocation(prev => ({ ...prev, address, latitude: coords.latitude, longitude: coords.longitude }));
+                setSearchQuery(address);
+            } else {
+                setNewLocation(prev => ({ ...prev, latitude: coords.latitude, longitude: coords.longitude }));
+            }
+        } catch (e) {
+            setNewLocation(prev => ({ ...prev, latitude: coords.latitude, longitude: coords.longitude }));
+        } finally {
+            setReverseGeocoding(false);
+        }
+    };
+
+    // Forward address search — Photon by Komoot (free, OSM-based, no API key, no 403)
+    const handleSearchQueryChange = (text) => {
+        setSearchQuery(text);
+        setNewLocation(prev => ({ ...prev, address: text }));
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        if (text.length < 3) { setSearchResults([]); return; }
+        searchTimerRef.current = setTimeout(async () => {
+            setSearchLoading(true);
+            try {
+                const res = await fetch(
+                    `https://photon.komoot.io/api/?q=${encodeURIComponent(text)}&limit=5&lang=fr`
+                );
+                const data = await res.json();
+                if (data?.features) {
+                    setSearchResults(data.features.map(f => ({
+                        place_id: f.properties.osm_id,
+                        lat: f.geometry.coordinates[1],
+                        lon: f.geometry.coordinates[0],
+                        display_name: [
+                            f.properties.name,
+                            f.properties.street,
+                            f.properties.city,
+                            f.properties.state,
+                            f.properties.country,
+                        ].filter(Boolean).join(', '),
+                    })));
+                } else {
+                    setSearchResults([]);
+                }
+            } catch (e) {
+                setSearchResults([]);
+            } finally {
+                setSearchLoading(false);
+            }
+        }, 500);
+    };
+
+    // When user picks a search result
+    const handleSelectSearchResult = (result) => {
+        const lat = parseFloat(result.lat);
+        const lng = parseFloat(result.lon);
+        const coords = { latitude: lat, longitude: lng };
+        setMarkerCoordinate(coords);
+        // Setting mapRegion triggers NativeMapPicker.animateToRegion via useEffect
+        setMapRegion({ ...coords, latitudeDelta: 0.004, longitudeDelta: 0.004 });
+        setNewLocation(prev => ({ ...prev, address: result.display_name, latitude: lat, longitude: lng }));
+        setSearchQuery(result.display_name);
+        setSearchResults([]);
     };
 
     const handleOpenAddLocation = () => {
         setShowAddLocation(true);
-        // Request location permission when modal opens
+        // Show a default region immediately so map appears before GPS resolves
+        setMapRegion({ latitude: 0.3924, longitude: 9.4536, latitudeDelta: 0.05, longitudeDelta: 0.05 });
+        // Then try to get real location
         requestLocationPermission();
     };
 
@@ -653,6 +969,8 @@ const NewOrderScreen = ({ navigation, route }) => {
         setMapRegion(null);
         setMarkerCoordinate(null);
         setCurrentLocation(null);
+        setSearchQuery('');
+        setSearchResults([]);
     };
 
     const renderAddLocationModal = () => (
@@ -662,154 +980,193 @@ const NewOrderScreen = ({ navigation, route }) => {
             transparent={false}
             onRequestClose={handleCloseAddLocation}
         >
-            <View style={styles.modalContainer}>
-                {/* Header */}
-                <View style={styles.modalHeader}>
-                    <TouchableOpacity onPress={handleCloseAddLocation}>
-                        <MaterialCommunityIcons name="close" size={24} color={theme.colors.text} />
+            <View style={styles.addrModalRoot}>
+
+                {/* ── Header ───────────────────────────────────── */}
+                <View style={styles.addrHeader}>
+                    <View style={styles.addrHeaderAccent} />
+                    <TouchableOpacity style={styles.addrHeaderClose} onPress={handleCloseAddLocation}>
+                        <MaterialCommunityIcons name="arrow-left" size={22} color={theme.colors.text} />
                     </TouchableOpacity>
-                    <Text style={styles.modalHeaderTitle}>
-                        {editingLocationId ? t('customer.newOrder.editLocation') : t('customer.newOrder.addNewLocation')}
-                    </Text>
-                    <View style={{ width: 24 }} />
+                    <View style={styles.addrHeaderCenter}>
+                        <MaterialCommunityIcons name="map-marker-plus-outline" size={22} color={theme.colors.primary} style={{ marginRight: 8 }} />
+                        <Text style={styles.addrHeaderTitle}>
+                            {editingLocationId ? 'Modifier l’adresse' : 'Nouvelle adresse'}
+                        </Text>
+                    </View>
+                    <View style={{ width: 40 }} />
                 </View>
 
-                <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-                    {/* Real-Time Map */}
-                    <View style={styles.realMapContainer}>
-                        {mapRegion && markerCoordinate ? (
-                            <>
-                                <OpenStreetMap
-                                    style={styles.realMap}
-                                    initialRegion={mapRegion}
-                                    interaction="picker"
-                                    onRegionChange={(region) => {
-                                        // Update marker coordinate to center of map
-                                        setMarkerCoordinate({
-                                            latitude: region.latitude,
-                                            longitude: region.longitude
-                                        });
-                                        // Also can update mapRegion if needed, but usually redundant for picking
-                                    }}
-                                />
-                                <View style={styles.accuracyBadge}>
-                                    <MaterialCommunityIcons name="crosshairs-gps" size={12} color={theme.colors.success} />
-                                    <Text style={styles.accuracyText}>GPS Active</Text>
-                                </View>
-                                {markerCoordinate && typeof markerCoordinate.latitude === 'number' && typeof markerCoordinate.longitude === 'number' && (
-                                    <View style={styles.coordsOverlay}>
-                                        <Text style={styles.coordsOverlayText}>
-                                            ðŸ“ {markerCoordinate.latitude.toFixed(6)}, {markerCoordinate.longitude.toFixed(6)}
-                                        </Text>
-                                    </View>
-                                )}
-                            </>
-                        ) : (
-                            <View style={styles.mapLoadingContainer}>
-                                <ActivityIndicator
-                                    size="large"
-                                    color={theme.colors.primary}
-                                    style={{ marginBottom: theme.spacing.md }}
-                                />
-                                <MaterialCommunityIcons
-                                    name="map-marker-outline"
-                                    size={64}
-                                    color={theme.colors.textTertiary}
-                                />
-                                <Text style={styles.mapLoadingText}>
-                                    {fetchingLocation ? 'Detecting your location...' : 'Tap GPS button to detect location'}
-                                </Text>
-                            </View>
-                        )}
-
-                        {/* GPS Detection Button */}
-                        <TouchableOpacity
-                            style={styles.gpsFloatingButton}
-                            onPress={getCurrentLocation}
-                            disabled={fetchingLocation}
-                        >
-                            {fetchingLocation ? (
-                                <ActivityIndicator size="small" color="#fff" />
-                            ) : (
-                                <MaterialCommunityIcons
-                                    name="crosshairs-gps"
-                                    size={24}
-                                    color="#fff"
-                                />
-                            )}
-                        </TouchableOpacity>
+                {/* ── Search bar ───────────────────────────────── */}
+                <View style={styles.addrSearchSection}>
+                    <View style={[styles.addrSearchPill, searchResults.length > 0 && styles.addrSearchPillOpen]}>
+                        <MaterialCommunityIcons name="magnify" size={20} color={theme.colors.primary} style={{ marginRight: 10 }} />
+                        <TextInput
+                            style={styles.addrSearchInput}
+                            placeholder="Rechercher une adresse, un quartier..."
+                            placeholderTextColor={theme.colors.textTertiary}
+                            value={searchQuery}
+                            onChangeText={handleSearchQueryChange}
+                            returnKeyType="search"
+                            autoCorrect={false}
+                        />
+                        {searchLoading
+                            ? <ActivityIndicator size="small" color={theme.colors.primary} />
+                            : reverseGeocoding
+                                ? <MaterialCommunityIcons name="map-marker-radius-outline" size={18} color={theme.colors.primary} />
+                                : searchQuery.length > 0
+                                    ? <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
+                                        <MaterialCommunityIcons name="close-circle" size={18} color={theme.colors.textTertiary} />
+                                      </TouchableOpacity>
+                                    : null
+                        }
                     </View>
 
-                    {/* Map Instructions */}
-                    {mapRegion && markerCoordinate && (
-                        <View style={styles.mapInstructionBanner}>
-                            <MaterialCommunityIcons name="gesture-tap" size={18} color={theme.colors.info} />
-                            <Text style={styles.mapInstructionText}>
-                                Tap map or drag marker to adjust position
-                            </Text>
+                    {/* Dropdown */}
+                    {searchResults.length > 0 && (
+                        <View style={styles.addrDropdown}>
+                            {searchResults.map((r, i) => (
+                                <TouchableOpacity
+                                    key={r.place_id || i}
+                                    style={[styles.addrDropItem, i < searchResults.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }]}
+                                    onPress={() => handleSelectSearchResult(r)}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={styles.addrDropIcon}>
+                                        <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.primary} />
+                                    </View>
+                                    <Text style={styles.addrDropText} numberOfLines={2}>{r.display_name}</Text>
+                                    <MaterialCommunityIcons name="chevron-right" size={16} color={theme.colors.textTertiary} style={{ flexShrink: 0 }} />
+                                </TouchableOpacity>
+                            ))}
                         </View>
                     )}
+                </View>
 
-                    {/* Form Fields */}
-                    <View style={styles.formContainer}>
-                        <Text style={styles.formLabel}>Label</Text>
-                        <TextInput
-                            style={styles.modalInput}
-                            placeholder={t('customer.newOrder.placeholderLabel')}
-                            placeholderTextColor={theme.colors.textTertiary}
-                            value={newLocation.label}
-                            onChangeText={(text) => setNewLocation({ ...newLocation, label: text })}
+                {/* ── Map (native react-native-maps, OSM/Esri tiles) ── */}
+                <View style={styles.addrMapWrap}>
+                    {fetchingLocation && !mapRegion ? (
+                        <View style={styles.addrMapPlaceholder}>
+                            <ActivityIndicator size="large" color={theme.colors.primary} />
+                            <Text style={styles.addrMapPlaceholderText}>Détection GPS...</Text>
+                        </View>
+                    ) : (
+                        <NativeMapPicker
+                            style={styles.realMap}
+                            region={mapRegion}
+                            markerCoordinate={markerCoordinate}
+                            mapType={mapType}
+                            onLocationChange={handleMapTap}
+                            showUserLocation={true}
                         />
+                    )}
 
-                        <Text style={styles.formLabel}>Address</Text>
-                        <TextInput
-                            style={[styles.modalInput, styles.addressInput]}
-                            placeholder={t('customer.newOrder.placeholderAddress')}
-                            placeholderTextColor={theme.colors.textTertiary}
-                            value={newLocation.address}
-                            onChangeText={(text) => setNewLocation({ ...newLocation, address: text })}
-                            multiline
-                            numberOfLines={3}
+                    {/* Floating controls */}
+                    <TouchableOpacity style={styles.addrGpsBtn} onPress={getCurrentLocation} disabled={fetchingLocation}>
+                        {fetchingLocation
+                            ? <ActivityIndicator size="small" color="#fff" />
+                            : <MaterialCommunityIcons name="crosshairs-gps" size={20} color="#fff" />
+                        }
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.addrSatBtn}
+                        onPress={() => setMapType(prev => prev === 'standard' ? 'satellite' : 'standard')}
+                    >
+                        <MaterialCommunityIcons
+                            name={mapType === 'standard' ? 'satellite-variant' : 'map-outline'}
+                            size={17}
+                            color={theme.colors.primary}
                         />
+                    </TouchableOpacity>
 
+                    {/* Tap-to-pin hint / confirmed badge */}
+                    {markerCoordinate ? (
+                        <View style={[styles.addrMapBadge, { backgroundColor: theme.colors.success + '22', borderColor: theme.colors.success + '44' }]}>
+                            <MaterialCommunityIcons name="map-marker-check" size={13} color={theme.colors.success} />
+                            <Text style={[styles.addrMapBadgeText, { color: theme.colors.success }]}>Position pinée</Text>
+                        </View>
+                    ) : mapRegion ? (
+                        <View style={[styles.addrMapBadge, { backgroundColor: theme.colors.primary + '18', borderColor: theme.colors.primary + '40' }]}>
+                            <MaterialCommunityIcons name="gesture-tap" size={13} color={theme.colors.primary} />
+                            <Text style={[styles.addrMapBadgeText, { color: theme.colors.primary }]}>Touchez pour placer</Text>
+                        </View>
+                    ) : null}
+                </View>
+
+                {/* ── Form panel ───────────────────────────────── */}
+                <View style={styles.addrPanel}>
+
+                    {/* Label field */}
+                    <View style={styles.addrInputGroup}>
+                        <View style={styles.addrInputIcon}>
+                            <MaterialCommunityIcons name="home-map-marker" size={16} color={theme.colors.primary} />
+                        </View>
+                        <View style={styles.addrInputBody}>
+                            <Text style={styles.addrInputLabel}>Nom du lieu</Text>
+                            <TextInput
+                                style={styles.addrInput}
+                                placeholder="Ex : Domicile, Bureau, Parent..."
+                                placeholderTextColor={theme.colors.textTertiary}
+                                value={newLocation.label}
+                                onChangeText={(text) => setNewLocation({ ...newLocation, label: text })}
+                                returnKeyType="next"
+                            />
+                        </View>
+                    </View>
+
+                    <View style={styles.addrDivider} />
+
+                    {/* Address field */}
+                    <View style={styles.addrInputGroup}>
+                        <View style={styles.addrInputIcon}>
+                            <MaterialCommunityIcons name="map-marker-outline" size={16} color={theme.colors.primary} />
+                        </View>
+                        <View style={styles.addrInputBody}>
+                            <Text style={styles.addrInputLabel}>Adresse complète</Text>
+                            <TextInput
+                                style={styles.addrInput}
+                                placeholder="Rue, quartier, ville..."
+                                placeholderTextColor={theme.colors.textTertiary}
+                                value={newLocation.address}
+                                onChangeText={(text) => setNewLocation({ ...newLocation, address: text })}
+                                returnKeyType="done"
+                            />
+                        </View>
                         {markerCoordinate && (
-                            <View style={styles.coordinatesInfo}>
-                                <MaterialCommunityIcons name="map-marker-check" size={16} color={theme.colors.success} />
-                                <Text style={styles.coordinatesText}>
-                                    GPS coordinates saved
-                                </Text>
+                            <View style={styles.addrGpsDot}>
+                                <MaterialCommunityIcons name="crosshairs-gps" size={13} color={theme.colors.success} />
                             </View>
                         )}
                     </View>
 
-                    {/* Action Buttons */}
-                    <View style={styles.modalActions}>
-                        <TouchableOpacity
-                            style={[styles.modalActionButton, styles.saveLocationButton]}
-                            onPress={handleAddLocation}
-                            disabled={addingLocation}
-                        >
-                            {addingLocation ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <>
-                                    <MaterialCommunityIcons name="check" size={20} color="#fff" />
-                                    <Text style={styles.saveLocationButtonText}>
-                                        {editingLocationId ? 'Update Location' : 'Save Location'}
-                                    </Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                </ScrollView>
-            </View >
-        </Modal >
+                    {/* Save button */}
+                    <TouchableOpacity
+                        style={[styles.addrSaveBtn, (!newLocation.label || !newLocation.address) && styles.addrSaveBtnDisabled]}
+                        onPress={handleAddLocation}
+                        disabled={addingLocation || !newLocation.label || !newLocation.address}
+                        activeOpacity={0.85}
+                    >
+                        {addingLocation
+                            ? <ActivityIndicator color="#fff" size="small" />
+                            : <>
+                                <MaterialCommunityIcons name={editingLocationId ? 'check-circle-outline' : 'map-marker-check'} size={20} color="#fff" />
+                                <Text style={styles.addrSaveBtnText}>
+                                    {editingLocationId ? 'Enregistrer les modifications' : 'Enregistrer cette adresse'}
+                                </Text>
+                              </>
+                        }
+                    </TouchableOpacity>
+                </View>
+
+            </View>
+        </Modal>
     );
 
     const renderStep1 = () => (
         <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Select Items</Text>
-            <Text style={styles.stepSubtitle}>Choose the items you want to clean</Text>
+            <Text style={styles.stepTitle}>Sélectionner les articles</Text>
+            <Text style={styles.stepSubtitle}>Choisissez les articles à nettoyer</Text>
 
             {/* Express Service Toggle - MOVED TO TOP */}
             <TouchableOpacity
@@ -819,8 +1176,8 @@ const NewOrderScreen = ({ navigation, route }) => {
                 <View style={styles.expressInfo}>
                     <MaterialCommunityIcons name="flash" size={24} color={theme.colors.warning} />
                     <View>
-                        <Text style={styles.expressTitle}>Express Service</Text>
-                        <Text style={styles.expressSubtitle}>24-hour delivery (+20%)</Text>
+                        <Text style={styles.expressTitle}>Service Express</Text>
+                        <Text style={styles.expressSubtitle}>Livraison en 24h (+{expressPercentage}%)</Text>
                     </View>
                 </View>
                 <View style={[styles.toggle, orderData.isExpress && styles.toggleActive]}>
@@ -832,7 +1189,7 @@ const NewOrderScreen = ({ navigation, route }) => {
             {orderData.items.length > 0 && (
                 <View style={styles.selectedItemsContainer}>
                     <Text style={styles.selectedItemsTitle}>
-                        Selected ({orderData.items.length} {orderData.items.length === 1 ? 'item' : 'items'})
+                        Sélectionnés ({orderData.items.length} {orderData.items.length === 1 ? 'article' : 'articles'})
                     </Text>
                     <ScrollView
                         horizontal
@@ -846,7 +1203,7 @@ const NewOrderScreen = ({ navigation, route }) => {
 
                             return (
                                 <View key={item.categoryId} style={styles.selectedItemChip}>
-                                    <Text style={styles.selectedItemName}>{category.name}</Text>
+                                    <Text style={styles.selectedItemName}>{category.name_fr || category.name}</Text>
                                     <View style={styles.selectedItemBadge}>
                                         <Text style={styles.selectedItemQuantity}>×{item.quantity}</Text>
                                     </View>
@@ -864,7 +1221,7 @@ const NewOrderScreen = ({ navigation, route }) => {
             )}
 
             <View style={styles.categoryList}>
-                {['Clothing', 'Household', 'Accessories'].map(group => (
+                {Object.keys(groupedItems).map(group => (
                     groupedItems[group]?.length > 0 && (
                         <View key={group} style={{ marginBottom: theme.spacing.lg }}>
                             <Text style={{
@@ -889,94 +1246,20 @@ const NewOrderScreen = ({ navigation, route }) => {
                                     >
                                         <View style={styles.categoryInfo}>
                                             <View style={styles.categoryIconContainer}>
-                                                {(() => {
-                                                    const normalizedName = category.name.toLowerCase();
-                                                    let gifSource = null;
-
-                                                    if (normalizedName.includes('shirt') && !normalizedName.includes('t-shirt') && !normalizedName.includes('sweat')) {
-                                                        gifSource = require('../../../assets/images/shirt.gif');
-                                                    } else if (normalizedName.includes('t-shirt')) {
-                                                        gifSource = require('../../../assets/images/t-shirt.gif');
-                                                    } else if (normalizedName.includes('polo')) {
-                                                        gifSource = require('../../../assets/images/polo.gif');
-                                                    } else if (normalizedName.includes('pants') || normalizedName.includes('trouser') || normalizedName.includes('pantalon') || normalizedName.includes('jean')) {
-                                                        gifSource = require('../../../assets/images/pants.gif');
-                                                    } else if (normalizedName.includes('dress')) {
-                                                        gifSource = require('../../../assets/images/dress (1).gif');
-                                                    } else if (normalizedName.includes('baby') || normalizedName.includes('bébé')) {
-                                                        gifSource = require('../../../assets/images/baby-clothes.gif');
-                                                    } else if (normalizedName.includes('bed') || normalizedName.includes('drap')) { // Bedsheet
-                                                        gifSource = require('../../../assets/images/bed.gif');
-                                                    } else if (normalizedName.includes('combinaison') || normalizedName.includes('coverall')) {
-                                                        gifSource = require('../../../assets/images/coverall (1).gif');
-                                                    } else if (normalizedName.includes('curtain') || normalizedName.includes('rideau')) {
-                                                        gifSource = require('../../../assets/images/curtain.gif');
-                                                    } else if (normalizedName.includes('sweatshirt')) {
-                                                        gifSource = require('../../../assets/images/hooded-sweatshirt.gif');
-                                                    } else if (normalizedName.includes('leather') || normalizedName.includes('cuir')) {
-                                                        gifSource = require('../../../assets/images/leather-jacket.gif');
-                                                    } else if (normalizedName.includes('coat') || normalizedName.includes('manteau') || normalizedName.includes('jacket')) {
-                                                        gifSource = require('../../../assets/images/jacket.gif');
-                                                    } else if (normalizedName.includes('panties') || normalizedName.includes('culotte')) {
-                                                        gifSource = require('../../../assets/images/panties.gif');
-                                                    } else if (normalizedName.includes('pillow') || normalizedName.includes('oreiller')) {
-                                                        gifSource = require('../../../assets/images/pillow.gif');
-                                                    } else if (normalizedName.includes('shoe') || normalizedName.includes('chaussure')) {
-                                                        gifSource = require('../../../assets/images/shoes (1).gif');
-                                                    } else if (normalizedName.includes('short')) {
-                                                        gifSource = require('../../../assets/images/short.gif');
-                                                    } else if (normalizedName.includes('skirt') || normalizedName.includes('jupe')) {
-                                                        gifSource = require('../../../assets/images/skirt.gif');
-                                                    } else if (normalizedName.includes('sock') || normalizedName.includes('chaussette')) {
-                                                        gifSource = require('../../../assets/images/socks (1).gif');
-                                                    } else if (normalizedName.includes('sweater') || normalizedName.includes('pull')) {
-                                                        gifSource = require('../../../assets/images/sweater.gif');
-                                                    } else if (normalizedName.includes('towel') || normalizedName.includes('serviette')) {
-                                                        gifSource = require('../../../assets/images/towels.gif');
-                                                    } else if (normalizedName.includes('vest') || normalizedName.includes('gilet')) {
-                                                        gifSource = require('../../../assets/images/vest.gif');
-                                                    } else if (normalizedName.includes('hoodie')) {
-                                                        gifSource = require('../../../assets/images/hoodie.gif');
-                                                    } else if (normalizedName.includes('tie') || normalizedName.includes('cravate')) {
-                                                        gifSource = require('../../../assets/images/professionality.gif');
-                                                    } else if (normalizedName.includes('uniform') || normalizedName.includes('officer') || normalizedName.includes('officier')) {
-                                                        gifSource = require('../../../assets/images/customs-officer.gif');
-                                                    } else if (normalizedName.includes('suit') || normalizedName.includes('costume')) {
-                                                        gifSource = require('../../../assets/images/suit.gif');
-                                                    } else if (normalizedName.includes('underwear') || normalizedName.includes('sous-v\u00EAtement')) {
-                                                        gifSource = require('../../../assets/images/bikini.gif');
-                                                    } else if (normalizedName.includes('sportswear') || normalizedName.includes('sport')) {
-                                                        gifSource = require('../../../assets/images/basketball-equipment.gif');
-                                                    }
-
-                                                    if (gifSource) {
-                                                        return (
-                                                            <Image
-                                                                source={gifSource}
-                                                                style={{ width: 40, height: 40 }}
-                                                                contentFit="contain"
-                                                                cachePolicy="memory-disk"
-                                                            />
-                                                        );
-                                                    }
-
-                                                    // Fallback to MaterialCommunityIcons
-                                                    return (
-                                                        <MaterialCommunityIcons
-                                                            name={getClothingIcon(category.icon_name)}
-                                                            size={32}
-                                                            color={isSelected ? theme.colors.primary : theme.colors.text}
-                                                        />
-                                                    );
-                                                })()}
+                                                <Image
+                                                    source={getGif(category.icon_name, category.name_fr || category.name, category.gif_url)}
+                                                    style={{ width: 44, height: 44 }}
+                                                    contentFit="contain"
+                                                    cachePolicy="memory-disk"
+                                                />
                                             </View>
                                             <View style={styles.categoryText}>
                                                 <Text style={[styles.categoryName, isSelected && styles.textSelected]}>
-                                                    {category.name}
+                                                    {category.name_fr || category.name}
                                                 </Text>
                                                 <Text style={styles.categoryPrice}>
                                                     {(parseFloat(category.base_price) * 100).toFixed(0)} Fcfa
-                                                    {orderData.isExpress && ` → ${(parseFloat(category.express_price) * 100).toFixed(0)} Fcfa`}
+                                                    {orderData.isExpress && ` (+${expressPercentage}% express)`}
                                                 </Text>
                                             </View>
                                         </View>
@@ -1021,33 +1304,33 @@ const NewOrderScreen = ({ navigation, route }) => {
 
     const renderStep2 = () => (
         <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Locations</Text>
-            <Text style={styles.stepSubtitle}>Select pickup and delivery locations</Text>
+            <Text style={styles.stepTitle}>Adresses</Text>
+            <Text style={styles.stepSubtitle}>Sélectionnez les adresses de collecte et de livraison</Text>
 
             {/* Info Banner */}
             <View style={styles.locationInfoBanner}>
                 <MaterialCommunityIcons name="information" size={20} color={theme.colors.info} />
                 <Text style={styles.locationInfoText}>
-                    You can choose the same address or different addresses for pickup and delivery
+                    Vous pouvez choisir la même adresse ou des adresses différentes pour la collecte et la livraison
                 </Text>
             </View>
 
             {locations.length === 0 ? (
                 <View style={styles.emptyState}>
                     <MaterialCommunityIcons name="map-marker-outline" size={48} color={theme.colors.textTertiary} />
-                    <Text style={styles.emptyText}>No saved locations</Text>
+                    <Text style={styles.emptyText}>Aucune adresse enregistrée</Text>
                     <TouchableOpacity
                         style={styles.addButton}
                         onPress={handleOpenAddLocation}
                     >
-                        <Text style={styles.addButtonText}>Add Location</Text>
+                        <Text style={styles.addButtonText}>Ajouter une adresse</Text>
                     </TouchableOpacity>
                 </View>
             ) : (
                 <View>
                     {/* Manage Locations Section */}
                     <View style={styles.manageLocationsSection}>
-                        <Text style={styles.manageLocationsTitle}>Manage Locations</Text>
+                        <Text style={styles.manageLocationsTitle}>Gérer les adresses</Text>
                         <TouchableOpacity
                             style={styles.addLocationButtonTop}
                             onPress={handleOpenAddLocation}
@@ -1091,7 +1374,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                     </View>
 
                     {/* Pickup Location Selection */}
-                    <Text style={styles.sectionLabel}>Pickup Location</Text>
+                    <Text style={styles.sectionLabel}>Adresse de collecte</Text>
                     {locations.map((location) => (
                         <TouchableOpacity
                             key={`pickup-${location.id}`}
@@ -1142,8 +1425,8 @@ const NewOrderScreen = ({ navigation, route }) => {
 
     const renderStep3 = () => (
         <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Pickup Schedule</Text>
-            <Text style={styles.stepSubtitle}>When should we pick up your laundry?</Text>
+            <Text style={styles.stepTitle}>Planification de la collecte</Text>
+            <Text style={styles.stepSubtitle}>Quand devons-nous récupérer votre linge ?</Text>
 
             {/* Pickup Type Selection */}
             <View style={styles.pickupTypeContainer}>
@@ -1160,9 +1443,9 @@ const NewOrderScreen = ({ navigation, route }) => {
                         color={orderData.pickupType === 'immediate' ? theme.colors.primary : theme.colors.textSecondary}
                     />
                     <Text style={[styles.pickupTypeTitle, orderData.pickupType === 'immediate' && styles.textSelected]}>
-                        Pick Up Now
+                        Collecte immédiate
                     </Text>
-                    <Text style={styles.pickupTypeDesc}>Driver will be assigned immediately</Text>
+                    <Text style={styles.pickupTypeDesc}>Un livreur sera assigné immédiatement</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1178,9 +1461,9 @@ const NewOrderScreen = ({ navigation, route }) => {
                         color={orderData.pickupType === 'scheduled' ? theme.colors.primary : theme.colors.textSecondary}
                     />
                     <Text style={[styles.pickupTypeTitle, orderData.pickupType === 'scheduled' && styles.textSelected]}>
-                        Schedule Pickup
+                        Planifier la collecte
                     </Text>
-                    <Text style={styles.pickupTypeDesc}>Choose a specific date and time</Text>
+                    <Text style={styles.pickupTypeDesc}>Choisissez une date et une heure précises</Text>
                 </TouchableOpacity>
             </View>
 
@@ -1189,7 +1472,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                 <View style={styles.scheduleSection}>
                     {/* Step 1: Select Date */}
                     <View style={styles.scheduleStep}>
-                        <Text style={styles.scheduleStepLabel}>1. Select Pickup Date</Text>
+                        <Text style={styles.scheduleStepLabel}>1. Sélectionner la date</Text>
                         <TouchableOpacity
                             style={styles.dateSelectButton}
                             onPress={() => setShowDatePicker(true)}
@@ -1197,13 +1480,13 @@ const NewOrderScreen = ({ navigation, route }) => {
                             <MaterialCommunityIcons name="calendar" size={24} color={theme.colors.primary} />
                             <Text style={[styles.dateSelectText, selectedDate && styles.dateSelectedText]}>
                                 {selectedDate
-                                    ? selectedDate.toLocaleDateString('en-US', {
+                                    ? selectedDate.toLocaleDateString('fr-FR', {
                                         weekday: 'long',
                                         year: 'numeric',
                                         month: 'long',
                                         day: 'numeric'
                                     })
-                                    : 'Choose a date'}
+                                    : 'Choisir une date'}
                             </Text>
                             <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.textTertiary} />
                         </TouchableOpacity>
@@ -1222,7 +1505,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                     {/* Step 2: Select Time Slot */}
                     {selectedDate && (
                         <View style={styles.scheduleStep}>
-                            <Text style={styles.scheduleStepLabel}>2. Select Time Slot</Text>
+                            <Text style={styles.scheduleStepLabel}>2. Choisir le créneau horaire</Text>
                             <View style={styles.timeSlotsContainer}>
                                 {timeSlots.map((slot) => (
                                     <TouchableOpacity
@@ -1264,9 +1547,9 @@ const NewOrderScreen = ({ navigation, route }) => {
                         <View style={styles.scheduleConfirmation}>
                             <MaterialCommunityIcons name="check-circle" size={24} color={theme.colors.success} />
                             <View style={styles.scheduleConfirmationText}>
-                                <Text style={styles.scheduleConfirmationTitle}>Pickup Scheduled</Text>
+                                <Text style={styles.scheduleConfirmationTitle}>Collecte planifiée</Text>
                                 <Text style={styles.scheduleConfirmationDetail}>
-                                    {selectedDate?.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                    {selectedDate?.toLocaleDateString('fr-FR', { weekday: 'short', month: 'short', day: 'numeric' })}
                                     {' â€¢ '}
                                     {selectedTimeSlot?.time}
                                 </Text>
@@ -1278,7 +1561,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                     <View style={styles.businessHoursInfo}>
                         <MaterialCommunityIcons name="information" size={16} color={theme.colors.textSecondary} />
                         <Text style={styles.businessHoursText}>
-                            We operate {businessHours.openTime}AM - {businessHours.closeTime}PM, Monday to Saturday
+                            Nous opérons de {businessHours.openTime}h à {businessHours.closeTime}h, du lundi au samedi
                         </Text>
                     </View>
                 </View>
@@ -1286,10 +1569,10 @@ const NewOrderScreen = ({ navigation, route }) => {
 
             {/* Special Instructions */}
             <View style={styles.instructionsSection}>
-                <Text style={styles.sectionLabel}>Special Instructions (Optional)</Text>
+                <Text style={styles.sectionLabel}>Instructions spéciales (Optionnel)</Text>
                 <TextInput
                     style={styles.textArea}
-                    placeholder="Add any special instructions for the driver..."
+                    placeholder="Ajoutez des instructions spéciales pour le livreur..."
                     placeholderTextColor={theme.colors.textTertiary}
                     value={orderData.specialInstructions}
                     onChangeText={(text) => setOrderData({ ...orderData, specialInstructions: text })}
@@ -1300,10 +1583,10 @@ const NewOrderScreen = ({ navigation, route }) => {
 
             {/* Order Comment */}
             <View style={styles.instructionsSection}>
-                <Text style={styles.sectionLabel}>Order Comment (Optional)</Text>
+                <Text style={styles.sectionLabel}>Commentaire de commande (Optionnel)</Text>
                 <TextInput
                     style={styles.textArea}
-                    placeholder="General order notes (e.g., 'Need by Friday for wedding')"
+                    placeholder="Notes générales (ex: 'Prêt vendredi pour mariage')"
                     placeholderTextColor={theme.colors.textTertiary}
                     value={orderComment}
                     onChangeText={setOrderComment}
@@ -1314,10 +1597,10 @@ const NewOrderScreen = ({ navigation, route }) => {
 
             {/* Item Comment */}
             <View style={styles.instructionsSection}>
-                <Text style={styles.sectionLabel}>Item Notes (Optional)</Text>
+                <Text style={styles.sectionLabel}>Notes sur les articles (Optionnel)</Text>
                 <TextInput
                     style={styles.textArea}
-                    placeholder="Specific item notes (e.g., 'Red wine stain on blue shirt sleeve')"
+                    placeholder="Notes spécifiques (ex: 'Tache de vin rouge sur la manche de la chemise bleue')"
                     placeholderTextColor={theme.colors.textTertiary}
                     value={itemComment}
                     onChangeText={setItemComment}
@@ -1340,12 +1623,12 @@ const NewOrderScreen = ({ navigation, route }) => {
 
         return (
             <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Payment & Review</Text>
-                <Text style={styles.stepSubtitle}>Review your order and select payment method</Text>
+                <Text style={styles.stepTitle}>Paiement & Récapitulatif</Text>
+                <Text style={styles.stepSubtitle}>Vérifiez votre commande et choisissez le mode de paiement</Text>
 
                 {/* Order Summary */}
                 <View style={styles.summaryCard}>
-                    <Text style={styles.summaryTitle}>Order Summary</Text>
+                    <Text style={styles.summaryTitle}>Récapitulatif de commande</Text>
 
                     {orderData.items.map((item) => {
                         const category = categories.find(c => c.id === item.categoryId);
@@ -1354,10 +1637,10 @@ const NewOrderScreen = ({ navigation, route }) => {
                         return (
                             <View key={item.categoryId} style={styles.summaryItem}>
                                 <Text style={styles.summaryItemText}>
-                                    {category.name} x{item.quantity}
+                                    {category.name_fr || category.name} x{item.quantity}
                                 </Text>
                                 <Text style={styles.summaryItemPrice}>
-                                    {(((orderData.isExpress ? category.express_price : category.base_price) * item.quantity) * 100).toFixed(0)} Fcfa
+                                    {((category.base_price * item.quantity) * 100).toFixed(0)} Fcfa
                                 </Text>
                             </View>
                         );
@@ -1366,26 +1649,32 @@ const NewOrderScreen = ({ navigation, route }) => {
                     <View style={styles.divider} />
 
                     <View style={styles.summaryItem}>
-                        <Text style={styles.summaryItemText}>Subtotal</Text>
+                        <Text style={styles.summaryItemText}>Sous-total</Text>
                         <Text style={styles.summaryItemPrice}>{(pricing.subtotal * 100).toFixed(0)} Fcfa</Text>
                     </View>
 
                     <View style={styles.summaryItem}>
-                        <Text style={styles.summaryItemText}>Delivery Fee</Text>
+                        <Text style={styles.summaryItemText}>Frais de livraison</Text>
                         <Text style={styles.summaryItemPrice}>{(pricing.deliveryFee * 100).toFixed(0)} Fcfa</Text>
                     </View>
 
                     {orderData.isExpress && (
                         <View style={styles.summaryItem}>
-                            <Text style={styles.summaryItemText}>Express Fee</Text>
+                            <Text style={styles.summaryItemText}>Supplément Express</Text>
                             <Text style={styles.summaryItemPrice}>{(pricing.expressFee * 100).toFixed(0)} Fcfa</Text>
                         </View>
                     )}
 
-                    <View style={styles.summaryItem}>
-                        <Text style={styles.summaryItemText}>Tax (10%)</Text>
-                        <Text style={styles.summaryItemPrice}>{(pricing.tax * 100).toFixed(0)} Fcfa</Text>
-                    </View>
+                    {pointsToRedeem > 0 && (
+                        <View style={styles.summaryItem}>
+                            <Text style={[styles.summaryItemText, { color: '#FFD700' }]}>
+                                Points ({pointsToRedeem} pts)
+                            </Text>
+                            <Text style={[styles.summaryItemPrice, { color: '#FFD700' }]}>
+                                -{(pricing.pointsDiscount * 100).toFixed(0)} Fcfa
+                            </Text>
+                        </View>
+                    )}
 
                     <View style={[styles.divider, { marginVertical: theme.spacing.sm }]} />
 
@@ -1395,9 +1684,93 @@ const NewOrderScreen = ({ navigation, route }) => {
                     </View>
                 </View>
 
+                {/* Coupon Code */}
+                <View style={styles.paymentSection}>
+                    <Text style={styles.sectionLabel}>Code Coupon</Text>
+                    {couponResult ? (
+                        <View style={styles.couponApplied}>
+                            <MaterialCommunityIcons name="tag-check" size={20} color={theme.colors.success} />
+                            <View style={{ flex: 1, marginLeft: 8 }}>
+                                <Text style={styles.couponAppliedTitle}>{couponResult.coupon.name}</Text>
+                                <Text style={styles.couponAppliedDiscount}>
+                                    -{couponResult.discountAmount.toFixed(0)} Fcfa économisés
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={removeCoupon}>
+                                <MaterialCommunityIcons name="close-circle" size={22} color={theme.colors.error} />
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View style={styles.couponRow}>
+                            <TextInput
+                                style={styles.couponInput}
+                                placeholder="Entrez un code coupon"
+                                value={couponCode}
+                                onChangeText={setCouponCode}
+                                autoCapitalize="characters"
+                                placeholderTextColor={theme.colors.textTertiary}
+                            />
+                            <TouchableOpacity
+                                style={styles.couponApplyBtn}
+                                onPress={validateCoupon}
+                                disabled={couponLoading || !couponCode.trim()}
+                            >
+                                {couponLoading
+                                    ? <ActivityIndicator size="small" color="#fff" />
+                                    : <Text style={styles.couponApplyText}>Appliquer</Text>
+                                }
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                    {couponError && (
+                        <Text style={styles.couponErrorText}>{couponError}</Text>
+                    )}
+                </View>
+
+                {/* Points Redemption */}
+                {userPoints >= minRedemptionPoints && (
+                    <View style={styles.paymentSection}>
+                        <Text style={styles.sectionLabel}>Utiliser mes points</Text>
+                        <View style={styles.pointsRedeemCard}>
+                            <View style={styles.pointsRedeemHeader}>
+                                <MaterialCommunityIcons name="star-circle" size={22} color="#FFD700" />
+                                <Text style={styles.pointsBalanceText}>
+                                    Vous avez <Text style={{ color: '#FFD700', fontWeight: 'bold' }}>{userPoints}</Text> points
+                                </Text>
+                            </View>
+                            <Text style={styles.pointsHint}>
+                                Min {minRedemptionPoints} pts · 1 pt = {pointsValueFcfa} Fcfa · max {maxRedemptionPercent}% de la commande
+                            </Text>
+                            <View style={styles.pointsInputRow}>
+                                <TouchableOpacity
+                                    style={styles.pointsStepBtn}
+                                    onPress={() => handlePointsChange(pointsToRedeem - minRedemptionPoints)}
+                                >
+                                    <MaterialCommunityIcons name="minus" size={18} color={theme.colors.primary} />
+                                </TouchableOpacity>
+                                <TextInput
+                                    style={styles.pointsInput}
+                                    keyboardType="numeric"
+                                    value={String(pointsToRedeem)}
+                                    onChangeText={handlePointsChange}
+                                />
+                                <TouchableOpacity
+                                    style={styles.pointsStepBtn}
+                                    onPress={() => handlePointsChange(pointsToRedeem + minRedemptionPoints)}
+                                >
+                                    <MaterialCommunityIcons name="plus" size={18} color={theme.colors.primary} />
+                                </TouchableOpacity>
+                                <Text style={styles.pointsDiscountPreview}>
+                                    = {(pointsToRedeem * pointsValueFcfa).toFixed(0)} Fcfa déduits
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                )}
+
                 {/* Payment Method */}
                 <View style={styles.paymentSection}>
-                    <Text style={styles.sectionLabel}>Payment Method</Text>
+                    <Text style={styles.sectionLabel}>Mode de paiement</Text>
 
                     {/* Cash on Delivery */}
                     <TouchableOpacity
@@ -1416,7 +1789,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                             styles.paymentText,
                             orderData.paymentMethod === 'cash' && styles.textSelected,
                         ]}>
-                            Cash on Pickup
+                            Paiement à la collecte
                         </Text>
                         {orderData.paymentMethod === 'cash' && (
                             <MaterialCommunityIcons name="check-circle" size={24} color={theme.colors.primary} />
@@ -1474,7 +1847,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>New Order</Text>
+                <Text style={styles.headerTitle}>Nouvelle Commande</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -1505,7 +1878,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                         style={[styles.footerButton, styles.backFooterButton]}
                         onPress={() => setStep(step - 1)}
                     >
-                        <Text style={styles.backButtonText}>Back</Text>
+                        <Text style={styles.backButtonText}>Retour</Text>
                     </TouchableOpacity>
                 )}
 
@@ -1515,7 +1888,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                         onPress={() => setStep(step + 1)}
                         disabled={step === 1 && orderData.items.length === 0}
                     >
-                        <Text style={styles.nextButtonText}>Next</Text>
+                        <Text style={styles.nextButtonText}>Suivant</Text>
                     </TouchableOpacity>
                 ) : (
                     <TouchableOpacity
@@ -1526,7 +1899,7 @@ const NewOrderScreen = ({ navigation, route }) => {
                         {submitting ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.submitButtonText}>Place Order</Text>
+                            <Text style={styles.submitButtonText}>Passer la commande</Text>
                         )}
                     </TouchableOpacity>
                 )}
@@ -2185,6 +2558,46 @@ const styles = StyleSheet.create({
         color: theme.colors.warning,
         fontWeight: theme.fonts.weights.semibold,
     },
+    // Coupon styles
+    couponRow: { flexDirection: 'row', gap: theme.spacing.sm },
+    couponInput: {
+        flex: 1, borderWidth: 1.5, borderColor: theme.colors.border,
+        borderRadius: theme.borderRadius.lg, paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.sm, fontSize: theme.fonts.sizes.md,
+        color: theme.colors.text, backgroundColor: theme.colors.surface,
+    },
+    couponApplyBtn: {
+        backgroundColor: theme.colors.primary, borderRadius: theme.borderRadius.lg,
+        paddingHorizontal: theme.spacing.lg, justifyContent: 'center', alignItems: 'center',
+    },
+    couponApplyText: { color: '#fff', fontWeight: theme.fonts.weights.bold, fontSize: theme.fonts.sizes.md },
+    couponApplied: {
+        flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9',
+        borderRadius: theme.borderRadius.lg, padding: theme.spacing.md,
+        borderWidth: 1, borderColor: theme.colors.success,
+    },
+    couponAppliedTitle: { fontSize: theme.fonts.sizes.md, fontWeight: theme.fonts.weights.semibold, color: theme.colors.text },
+    couponAppliedDiscount: { fontSize: theme.fonts.sizes.sm, color: theme.colors.success, fontWeight: theme.fonts.weights.bold },
+    couponErrorText: { color: theme.colors.error, fontSize: theme.fonts.sizes.sm, marginTop: theme.spacing.xs },
+    // Points redemption styles
+    pointsRedeemCard: {
+        backgroundColor: '#1a1a2e', borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.md,
+    },
+    pointsRedeemHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginBottom: 4 },
+    pointsBalanceText: { fontSize: theme.fonts.sizes.md, color: '#fff' },
+    pointsHint: { fontSize: theme.fonts.sizes.xs, color: 'rgba(255,255,255,0.5)', marginBottom: theme.spacing.sm },
+    pointsInputRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+    pointsStepBtn: {
+        width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)',
+        justifyContent: 'center', alignItems: 'center',
+    },
+    pointsInput: {
+        width: 70, textAlign: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+        borderRadius: theme.borderRadius.md, paddingVertical: 4, color: '#fff',
+        fontSize: theme.fonts.sizes.md, fontWeight: theme.fonts.weights.bold,
+    },
+    pointsDiscountPreview: { fontSize: theme.fonts.sizes.md, color: '#FFD700', fontWeight: theme.fonts.weights.bold },
     footer: {
         flexDirection: 'row',
         padding: theme.spacing.lg,
@@ -2327,7 +2740,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     realMapContainer: {
-        height: 320,
+        height: 240,
         backgroundColor: theme.colors.surface,
         position: 'relative',
         borderBottomWidth: 1,
@@ -2340,7 +2753,6 @@ const styles = StyleSheet.create({
     },
     mapLoadingContainer: {
         flex: 1,
-        height: 320,
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: theme.colors.surface,
@@ -2354,19 +2766,19 @@ const styles = StyleSheet.create({
     },
     gpsFloatingButton: {
         position: 'absolute',
-        right: theme.spacing.lg,
-        bottom: theme.spacing.lg,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        right: 10,
+        bottom: 10,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: theme.colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 8,
+        elevation: 6,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
     },
     accuracyBadge: {
         position: 'absolute',
@@ -2433,6 +2845,274 @@ const styles = StyleSheet.create({
         fontSize: theme.fonts.sizes.sm,
         color: theme.colors.success,
         fontWeight: theme.fonts.weights.medium,
+    },
+    // ─── Address modal styles ────────────────────────────────────────
+    addrModalRoot: {
+        flex: 1,
+        backgroundColor: theme.colors.background,
+    },
+    addrHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingTop: 52,
+        paddingBottom: 14,
+        paddingHorizontal: 16,
+        backgroundColor: theme.colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.border,
+        position: 'relative',
+    },
+    addrHeaderAccent: {
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 4,
+        backgroundColor: theme.colors.primary,
+        borderTopRightRadius: 2,
+        borderBottomRightRadius: 2,
+    },
+    addrHeaderClose: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: theme.colors.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addrHeaderCenter: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    addrHeaderTitle: {
+        fontSize: 17,
+        fontWeight: '800',
+        color: theme.colors.text,
+        letterSpacing: 0.2,
+    },
+    addrSearchSection: {
+        backgroundColor: theme.colors.surface,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.border,
+        zIndex: 20,
+    },
+    addrSearchPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.colors.background,
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderWidth: 1.5,
+        borderColor: theme.colors.border,
+    },
+    addrSearchPillOpen: {
+        borderColor: theme.colors.primary,
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        borderBottomWidth: 0,
+    },
+    addrSearchInput: {
+        flex: 1,
+        fontSize: 14,
+        color: theme.colors.text,
+        paddingVertical: 0,
+    },
+    addrDropdown: {
+        backgroundColor: theme.colors.surface,
+        borderWidth: 1.5,
+        borderTopWidth: 0,
+        borderColor: theme.colors.primary,
+        borderBottomLeftRadius: 14,
+        borderBottomRightRadius: 14,
+        overflow: 'hidden',
+        elevation: 8,
+        shadowColor: '#00D4D4',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+    },
+    addrDropItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+    },
+    addrDropIcon: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: theme.colors.primary + '18',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 10,
+        flexShrink: 0,
+    },
+    addrDropText: {
+        flex: 1,
+        fontSize: 13,
+        color: theme.colors.text,
+        lineHeight: 17,
+        marginRight: 6,
+    },
+    addrMapWrap: {
+        flex: 1,
+        position: 'relative',
+        backgroundColor: theme.colors.background,
+    },
+    addrMapPlaceholder: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 32,
+    },
+    addrMapPlaceholderIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: theme.colors.primary + '15',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addrMapPlaceholderText: {
+        fontSize: 14,
+        color: theme.colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    addrGpsBtn: {
+        position: 'absolute',
+        right: 14,
+        bottom: 14,
+        width: 46,
+        height: 46,
+        borderRadius: 23,
+        backgroundColor: theme.colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 6,
+        shadowColor: theme.colors.primary,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.4,
+        shadowRadius: 6,
+    },
+    addrSatBtn: {
+        position: 'absolute',
+        right: 14,
+        bottom: 70,
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
+    },
+    addrMapBadge: {
+        position: 'absolute',
+        bottom: 14,
+        left: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 20,
+        borderWidth: 1,
+        gap: 5,
+    },
+    addrMapBadgeText: {
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    addrPanel: {
+        backgroundColor: theme.colors.surface,
+        paddingHorizontal: 20,
+        paddingTop: 18,
+        paddingBottom: 24,
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.border,
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+    },
+    addrInputGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 4,
+    },
+    addrInputIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: theme.colors.primary + '15',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+        flexShrink: 0,
+    },
+    addrInputBody: {
+        flex: 1,
+    },
+    addrInputLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: theme.colors.textTertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+        marginBottom: 2,
+    },
+    addrInput: {
+        fontSize: 14,
+        color: theme.colors.text,
+        fontWeight: '500',
+        paddingVertical: 4,
+    },
+    addrGpsDot: {
+        marginLeft: 8,
+        flexShrink: 0,
+    },
+    addrDivider: {
+        height: 1,
+        backgroundColor: theme.colors.border,
+        marginLeft: 44,
+        marginVertical: 2,
+    },
+    addrSaveBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        backgroundColor: theme.colors.primary,
+        borderRadius: 14,
+        height: 52,
+        marginTop: 16,
+        elevation: 4,
+        shadowColor: theme.colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+    },
+    addrSaveBtnDisabled: {
+        backgroundColor: theme.colors.textTertiary,
+        elevation: 0,
+        shadowOpacity: 0,
+    },
+    addrSaveBtnText: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#fff',
+        letterSpacing: 0.3,
     },
     modalActions: {
         padding: theme.spacing.lg,

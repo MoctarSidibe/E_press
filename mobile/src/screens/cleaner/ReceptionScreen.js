@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -7,11 +7,13 @@ import {
     TouchableOpacity,
     TextInput,
     Alert,
-    ActivityIndicator
+    ActivityIndicator,
+    RefreshControl
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { ordersAPI } from '../../services/api';
+import { ordersAPI, laveriesAPI } from '../../services/api';
 import theme from '../../theme/theme';
 import socketService from '../../services/socket';
 
@@ -21,6 +23,35 @@ const ReceptionScreen = ({ navigation, route }) => {
     const [receptionCount, setReceptionCount] = useState('');
     const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
+
+    // Orders en route from drivers — populated by GET /laveries/me/orders.
+    const [incoming, setIncoming] = useState([]);
+    const [loadingIncoming, setLoadingIncoming] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const loadIncoming = useCallback(async (showSpinner = true) => {
+        if (showSpinner) setLoadingIncoming(true);
+        try {
+            const res = await laveriesAPI.getMyOrders('picked_up');
+            setIncoming(res.data?.orders || []);
+        } catch (e) {
+            // Non-fatal — cleaner can still scan manually.
+            console.warn('[Reception] incoming load failed:', e.message);
+        } finally {
+            setLoadingIncoming(false);
+            setRefreshing(false);
+        }
+    }, []);
+
+    // Refresh whenever the tab gains focus (e.g. after returning from QR scanner).
+    useFocusEffect(useCallback(() => { loadIncoming(false); }, [loadIncoming]));
+
+    useEffect(() => { loadIncoming(true); }, [loadIncoming]);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        loadIncoming(false);
+    }, [loadIncoming]);
 
     const handleScanQR = () => {
         navigation.navigate('QRScanner', {
@@ -98,28 +129,78 @@ const ReceptionScreen = ({ navigation, route }) => {
                 </View>
             </View>
 
-            <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+            <ScrollView
+                style={styles.content}
+                contentContainerStyle={styles.contentContainer}
+                refreshControl={!scannedOrder
+                    ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                    : undefined
+                }
+            >
                 {!scannedOrder ? (
-                    // Scan Prompt
-                    <View style={styles.scanPrompt}>
-                        <MaterialCommunityIcons
-                            name="qrcode-scan"
-                            size={80}
-                            color={theme.colors.textTertiary}
-                        />
-                        <Text style={styles.promptTitle}>{t('cleaner.reception.readyToReceive')}</Text>
-                        <Text style={styles.promptSubtitle}>
-                            {t('cleaner.reception.scanPrompt')}
-                        </Text>
+                    <>
+                        {/* Incoming orders — what's en route from drivers right now. */}
+                        <View style={styles.incomingHeaderRow}>
+                            <MaterialCommunityIcons name="truck-fast" size={20} color={theme.colors.primary} />
+                            <Text style={styles.incomingHeader}>{t('cleaner.reception.incomingTitle')}</Text>
+                            <View style={styles.incomingBadge}>
+                                <Text style={styles.incomingBadgeText}>{incoming.length}</Text>
+                            </View>
+                        </View>
 
-                        <TouchableOpacity
-                            style={styles.scanButton}
-                            onPress={handleScanQR}
-                        >
-                            <MaterialCommunityIcons name="qrcode-scan" size={24} color="#fff" />
-                            <Text style={styles.scanButtonText}>{t('cleaner.reception.scanQR')}</Text>
-                        </TouchableOpacity>
-                    </View>
+                        {loadingIncoming ? (
+                            <ActivityIndicator color={theme.colors.primary} style={{ marginVertical: 12 }} />
+                        ) : incoming.length === 0 ? (
+                            <View style={styles.incomingEmpty}>
+                                <Text style={styles.incomingEmptyText}>{t('cleaner.reception.incomingEmpty')}</Text>
+                            </View>
+                        ) : (
+                            incoming.map(order => (
+                                <View key={order.id} style={styles.incomingCard}>
+                                    <View style={styles.incomingCardLeft}>
+                                        <Text style={styles.incomingCardCode}>{order.order_number}</Text>
+                                        <Text style={styles.incomingCardCustomer} numberOfLines={1}>
+                                            {order.customer_name || '—'}
+                                        </Text>
+                                        <Text style={styles.incomingCardMeta}>
+                                            {order.pickup_item_count || '—'} {t('order.details.items')}
+                                            {order.is_express ? '  •  ⚡' : ''}
+                                        </Text>
+                                        {order.driver_name && (
+                                            <Text style={styles.incomingCardDriver}>
+                                                {t('cleaner.reception.driver')}: {order.driver_name}
+                                            </Text>
+                                        )}
+                                    </View>
+                                    <View style={styles.incomingStatus}>
+                                        <MaterialCommunityIcons name="moped" size={20} color="#f59e0b" />
+                                        <Text style={styles.incomingStatusText}>{t('cleaner.reception.statusEnRoute')}</Text>
+                                    </View>
+                                </View>
+                            ))
+                        )}
+
+                        {/* Scan Prompt */}
+                        <View style={styles.scanPrompt}>
+                            <MaterialCommunityIcons
+                                name="qrcode-scan"
+                                size={80}
+                                color={theme.colors.textTertiary}
+                            />
+                            <Text style={styles.promptTitle}>{t('cleaner.reception.readyToReceive')}</Text>
+                            <Text style={styles.promptSubtitle}>
+                                {t('cleaner.reception.scanPrompt')}
+                            </Text>
+
+                            <TouchableOpacity
+                                style={styles.scanButton}
+                                onPress={handleScanQR}
+                            >
+                                <MaterialCommunityIcons name="qrcode-scan" size={24} color="#fff" />
+                                <Text style={styles.scanButtonText}>{t('cleaner.reception.scanQR')}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </>
                 ) : (
                     // Order Details & Count
                     <View style={styles.orderSection}>
@@ -533,6 +614,53 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
         padding: theme.spacing.md,
     },
+    incomingHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 10,
+    },
+    incomingHeader: {
+        fontSize: theme.fonts.sizes.md,
+        fontWeight: '800',
+        color: theme.colors.text,
+        flex: 1,
+    },
+    incomingBadge: {
+        minWidth: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: theme.colors.primary,
+        paddingHorizontal: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    incomingBadgeText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+    incomingEmpty: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 20,
+        alignItems: 'center',
+    },
+    incomingEmptyText: { color: theme.colors.textSecondary, fontSize: 13 },
+    incomingCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.colors.surface,
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
+        borderLeftWidth: 3,
+        borderLeftColor: '#f59e0b',
+    },
+    incomingCardLeft: { flex: 1, gap: 2 },
+    incomingCardCode: { fontSize: 15, fontWeight: '800', color: theme.colors.text },
+    incomingCardCustomer: { fontSize: 13, color: theme.colors.textSecondary },
+    incomingCardMeta: { fontSize: 12, color: theme.colors.textTertiary },
+    incomingCardDriver: { fontSize: 11, color: theme.colors.textTertiary, marginTop: 2 },
+    incomingStatus: { alignItems: 'center', gap: 2 },
+    incomingStatusText: { fontSize: 10, fontWeight: '700', color: '#f59e0b' },
 });
 
 export default ReceptionScreen;
