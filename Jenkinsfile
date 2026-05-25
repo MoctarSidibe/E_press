@@ -58,11 +58,12 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                // The actual deploy. deploy.sh is in /var/www/epress already
-                // (created on first install), but we run the in-repo copy so a
-                // change to the script itself lands without manual sync.
+                // Jenkins runs as the `jenkins` user. Deploy needs root (git
+                // pull into root-owned dir, pm2 reload, nginx reload). install.sh
+                // creates /etc/sudoers.d/epress-jenkins granting jenkins
+                // passwordless sudo for THIS one script only.
                 sh '''
-                    bash /var/www/epress/deploy/deploy.sh
+                    sudo /bin/bash /var/www/epress/deploy/deploy.sh
                 '''
             }
         }
