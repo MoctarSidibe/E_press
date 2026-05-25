@@ -102,6 +102,15 @@ module.exports = ({ config }) => ({
                 },
             ],
         ],
+        // Expo OTA updates — JS-only changes ship instantly without a new APK.
+        // Native module changes still require a fresh EAS build + reinstall.
+        // Each native build of a given appVersion shares one runtimeVersion;
+        // `eas update --branch production` targets it.
+        runtimeVersion: { policy: 'appVersion' },
+        updates: {
+            url: 'https://u.expo.dev/274a76ab-4f9f-4de4-8a4e-93e1501a9c6c',
+            fallbackToCacheTimeout: 0,
+        },
         extra: {
             // Surfaced to runtime via Constants.expoConfig.extra.variant
             variant: VARIANT,

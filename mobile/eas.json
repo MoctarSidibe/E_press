@@ -16,28 +16,31 @@
       "env": {
         "NODE_ENV": "production",
         "APP_VARIANT": "customer",
-        "EXPO_PUBLIC_API_URL": "http://161.97.66.69/api",
-        "EXPO_PUBLIC_SOCKET_URL": "http://161.97.66.69"
+        "EXPO_PUBLIC_API_URL": "https://epress.ga/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://epress.ga"
       },
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "apk" },
+      "channel": "production"
     },
     "production-customer": {
       "extends": "production",
       "env": {
         "NODE_ENV": "production",
         "APP_VARIANT": "customer",
-        "EXPO_PUBLIC_API_URL": "http://161.97.66.69/api",
-        "EXPO_PUBLIC_SOCKET_URL": "http://161.97.66.69"
-      }
+        "EXPO_PUBLIC_API_URL": "https://epress.ga/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://epress.ga"
+      },
+      "channel": "production-customer"
     },
     "production-worker": {
       "extends": "production",
       "env": {
         "NODE_ENV": "production",
         "APP_VARIANT": "worker",
-        "EXPO_PUBLIC_API_URL": "http://161.97.66.69/api",
-        "EXPO_PUBLIC_SOCKET_URL": "http://161.97.66.69"
-      }
+        "EXPO_PUBLIC_API_URL": "https://epress.ga/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://epress.ga"
+      },
+      "channel": "production-worker"
     }
   },
   "submit": {

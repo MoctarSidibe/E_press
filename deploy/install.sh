@@ -198,6 +198,10 @@ fi
 # Make sure the letsencrypt webroot exists (for ACME challenge over plain HTTP)
 mkdir -p /var/www/letsencrypt && chown www-data:www-data /var/www/letsencrypt
 
+# Downloads dir for the two APKs. Files arrive via deploy.sh (or are uploaded
+# manually after eas build). nginx vhost exposes them at /download/*.apk.
+mkdir -p "${PROJECT_PATH}/landing/downloads"
+
 # ── 7. nginx vhost ───────────────────────────────────────────────────────────
 NGINX_SITE="/etc/nginx/sites-available/${PROJECT_NAME}"
 if [[ ! -f "${NGINX_SITE}" ]]; then
