@@ -96,6 +96,18 @@ fi
 sudo -u postgres psql -d "${DB_NAME}" -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' >/dev/null
 log "uuid-ossp extension ensured"
 
+# Lockdown: this server hosts multiple projects under one Postgres cluster.
+# Default Postgres ACL gives every role CONNECT on every database via PUBLIC,
+# which means any other project's user can probe epress_prod. Strip that and
+# grant explicitly to epress_user only. Same for schema USAGE.
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "${DB_NAME}" <<SQL >/dev/null
+REVOKE CONNECT ON DATABASE ${DB_NAME} FROM PUBLIC;
+GRANT  CONNECT ON DATABASE ${DB_NAME} TO ${DB_USER};
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT  ALL ON SCHEMA public TO ${DB_USER};
+SQL
+log "Locked down ${DB_NAME}: only ${DB_USER} (+ postgres) can connect"
+
 # ── 3. Backend .env ──────────────────────────────────────────────────────────
 ENV_FILE="${PROJECT_PATH}/backend/.env"
 if [[ ! -f "${ENV_FILE}" ]]; then
